@@ -2,7 +2,8 @@
  * Sentence Grader: fictional Google Forms test fixture.
  *
  * Run setupSentenceGraderTest() from a standalone Google Apps Script project.
- * It creates (or reuses) a dedicated quiz and adds only missing test cases.
+ * Every run creates a NEW fictional test form and 12 fresh submissions.
+ * To resume the latest test form instead, run reuseLatestSentenceGraderTest().
  * No real classroom form or student information is accessed.
  */
 
@@ -67,8 +68,17 @@ const SENTENCE_GRADER_CASES = [
 ];
 
 function setupSentenceGraderTest() {
+  return buildSentenceGraderTest(false);
+}
+
+/** Reuse the most recently generated test form without duplicating submissions. */
+function reuseLatestSentenceGraderTest() {
+  return buildSentenceGraderTest(true);
+}
+
+function buildSentenceGraderTest(reuseExisting) {
   const properties = PropertiesService.getScriptProperties();
-  const priorId = properties.getProperty(SENTENCE_GRADER_TEST.propertyKey);
+  const priorId = reuseExisting ? properties.getProperty(SENTENCE_GRADER_TEST.propertyKey) : null;
   let form;
 
   if (priorId) {
@@ -80,9 +90,10 @@ function setupSentenceGraderTest() {
     }
   }
   if (!form) {
-    form = FormApp.create(SENTENCE_GRADER_TEST.title);
+    const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    form = FormApp.create(SENTENCE_GRADER_TEST.title + ' ' + timestamp);
     properties.setProperty(SENTENCE_GRADER_TEST.propertyKey, form.getId());
-    console.log('Created new Sentence Grader test form.');
+    console.log('Created a NEW Sentence Grader test form.');
   }
 
   form.setIsQuiz(true);
@@ -133,8 +144,7 @@ function setupSentenceGraderTest() {
   return form.getEditUrl();
 }
 
-/** Create a separate new test form without deleting the previous one. */
+/** Backward-compatible alias. setupSentenceGraderTest() now does this too. */
 function createFreshSentenceGraderTest() {
-  PropertiesService.getScriptProperties().deleteProperty(SENTENCE_GRADER_TEST.propertyKey);
   return setupSentenceGraderTest();
 }
