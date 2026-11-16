@@ -8,7 +8,14 @@
 
   // Count sentences, not grammatical completeness. Track original offsets so
   // unusually ambiguous passages can be highlighted for a teacher to inspect.
-  function analyze(text) {
+  const DEFAULT_RULES = Object.freeze({
+    lineBreaks: true,
+    ellipses: true,
+    reviewMissingPunctuation: true
+  });
+
+  function analyze(text, selectedRules = {}) {
+    const rules = { ...DEFAULT_RULES, ...selectedRules };
     const original = String(text || '');
     if (!original.trim()) return {
       count: 0, score: 3, confident: false,
@@ -36,7 +43,7 @@
       const char = original[i];
       if (char === '(' || char === '[') parenDepth++;
       if (char === ')' || char === ']') parenDepth = Math.max(0, parenDepth - 1);
-      if (char === '\n' || char === '\r') {
+      if (rules.lineBreaks && (char === '\n' || char === '\r')) {
         addSpan(start, i);
         while (i + 1 < original.length && /[\r\n]/.test(original[i + 1])) i++;
         start = i + 1;
@@ -44,6 +51,8 @@
         continue;
       }
       if (parenDepth || !/[.!?…]/.test(char) || protectedDots.has(i)) continue;
+      if (!rules.ellipses && (char === '…' ||
+        (char === '.' && (original[i - 1] === '.' || original[i + 1] === '.')))) continue;
       // Repeated punctuation is a single boundary. A closing quote counts as
       // part of the same sentence, including e.g. "That's great!".
       let end = i + 1;
@@ -58,7 +67,7 @@
     // Only flag strong signals of multiple unpunctuated sentence starts.
     // Fragments, lists, short statements, run-ons and style aren't graded.
     const issues = [];
-    for (const span of spans) {
+    for (const span of rules.reviewMissingPunctuation ? spans : []) {
       const starts = [...span.text.matchAll(/\b(?:I|We|They|He|She|My|Our|The|Then|It)\s+(?:[a-z][\w’'-]*\s+){0,2}[a-z][\w’'-]*/g)];
       const suspicious = starts.filter(m => m.index > 5 && !/\b(?:and|but|because|when|while|so|that|if|as|although)\s+$/i.test(span.text.slice(Math.max(0, m.index - 12), m.index)));
       if (suspicious.length >= 2) {
@@ -82,5 +91,5 @@
     };
   }
 
-  root.SentenceGrader = { analyze };
+  root.SentenceGrader = { analyze, DEFAULT_RULES };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

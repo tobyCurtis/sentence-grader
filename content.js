@@ -6,7 +6,10 @@
   const ANSWER_SELECTOR = '.vnb4ld .x8O7Bb';
   let entries = [];
   let opened = false;
-  const preferences = { toasts: true, confetti: true, volume: 75, graderName: 'Berlin' };
+  const preferences = {
+    toasts: true, confetti: true, volume: 75, graderName: 'Berlin',
+    rules: { lineBreaks: true, ellipses: true, reviewMissingPunctuation: true }
+  };
   let toastCount = 0;
   let audioContext;
   let navIndex = -1;
@@ -22,8 +25,7 @@
   let anchorEntry = null;
   let anchorCollapsed = false;
   let reviewEntry = null;
-  let tooltipDismiss;
-  let hoverTip;
+  let reviewMarkupKey = '';
   const reviewMarks = [];
   let layoutQueued = false;
   const completedMessages = ['Nice work. Nothing to do here! ✨', 'All caught up. Enjoy that little victory.', 'Look at that! Every response scored! 💜', 'A clean slate! You crushed this batch.', 'No loose ends. Beautiful work!', 'You did the thing. Time for a tiny victory lap.'];
@@ -116,9 +118,8 @@
     @keyframes toast-pop {from {opacity:0;transform:translate(-50%,-23px) scale(.94)}to {opacity:1;transform:translate(-50%,0) scale(1)}}
     @keyframes toast-out {from {opacity:1;transform:translate(-50%,0) scale(1)}to {opacity:0;transform:translate(-50%,-28px) scale(.98)}}
     @media (prefers-reduced-motion:reduce) {.toast,.toast.leaving {animation:none!important}.panel {transition:none}}
-    .card-count {position:absolute;top:9px;right:14px;padding:3px 8px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;z-index:2;pointer-events:none;box-shadow:0 1px 5px #0001}
     .review-squiggle {position:fixed;height:7px;z-index:2147483646;pointer-events:auto;cursor:help;background-repeat:repeat-x;background-position:bottom left;background-size:12px 5px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='5'%3E%3Cpath d='M0 3 Q3 0 6 3 T12 3' stroke='%23b33d75' stroke-width='1.6' fill='none'/%3E%3C/svg%3E")}
-    .review-tip {position:fixed;max-width:290px;z-index:2147483647;pointer-events:auto;background:#f4effc;color:#442773;border:1px solid #d8c8ef;padding:10px 12px;border-radius:9px;box-shadow:0 6px 22px #0003;font:13px/1.4 Roboto,Arial,sans-serif}
+    .rules {margin:16px 0 10px;padding:14px 0;border-top:1px solid #ece6f5}.rules h3 {margin:0 0 8px;font-size:14px;color:#4e318a}.rules label {margin:10px 0}.rules small {display:block;color:#777;line-height:1.3}
     .trigger {transition:transform .16s}.trigger.hidden {display:none}
     `;
   shadow.append(style);
@@ -131,7 +132,7 @@
   shadow.append(trigger);
   const panel = document.createElement('section');
   panel.className = 'panel hidden';
-  panel.innerHTML = '<div class="head"><strong data-panel-title>Sentence Grader</strong><div class="head-actions"><button class="icon-btn" data-action="settings" aria-label="Settings" title="Settings">⚙</button><button class="close" aria-label="Close panel">×</button></div></div><div class="body" data-main><div class="toolbar" data-toolbar><div class="small">Responses → Question · review before saving.</div><div class="actions"><button data-action="fill" disabled title="Fill confident blank scores">Fill blanks</button><button data-action="next" class="secondary" title="Next ungraded answer">Next ungraded ↓</button><button data-action="save" class="secondary" title="Save all filled scores">Save grades</button></div></div><div data-summary class="small"></div><div data-results></div><p class="small">Scores are not saved until Google Forms confirms Save grades.</p></div><div class="settings-page hidden" data-settings-page><p>Make grading your kind of fun.</p><div class="checks"><label><input type="checkbox" data-setting="toasts" checked> Encouragement toasts</label><label><input type="checkbox" data-setting="confetti" checked> Finish-line confetti 🎊</label></div><label class="volume-setting"><span class="volume-line"><span>Celebration trumpet 🎺</span><output data-volume-label>75%</output></span><input type="range" data-volume min="0" max="100" step="5" value="75" aria-label="Celebration volume"><small>Slide to zero to mute. Your setting is remembered.</small></label><button class="secondary" data-action="test-sound">▶ Test trumpet</button><div class="note">Preferences stay saved in Chrome · v1.0.1</div><div class="actions"><button data-action="back">← Back to grading</button></div></div>';
+  panel.innerHTML = '<div class="head"><strong data-panel-title>Sentence Grader</strong><div class="head-actions"><button class="icon-btn" data-action="settings" aria-label="Settings" title="Settings">⚙</button><button class="close" aria-label="Close panel">×</button></div></div><div class="body" data-main><div class="toolbar" data-toolbar><div class="small">Responses → Question · review before saving.</div><div class="actions"><button data-action="fill" disabled title="Fill confident blank scores">Fill blanks</button><button data-action="next" class="secondary" title="Next ungraded answer">Next ungraded ↓</button><button data-action="save" class="secondary" title="Save all filled scores">Save grades</button></div></div><div data-summary class="small"></div><div data-results></div><p class="small">Scores are not saved until Google Forms confirms Save grades.</p></div><div class="settings-page hidden" data-settings-page><p>Make grading your kind of fun.</p><div class="checks"><label><input type="checkbox" data-setting="toasts" checked> Encouragement toasts</label><label><input type="checkbox" data-setting="confetti" checked> Finish-line confetti 🎊</label></div><label class="volume-setting"><span class="volume-line"><span>Celebration trumpet 🎺</span><output data-volume-label>75%</output></span><input type="range" data-volume min="0" max="100" step="5" value="75" aria-label="Celebration volume"><small>Slide to zero to mute. Your setting is remembered.</small></label><button class="secondary" data-action="test-sound">▶ Test trumpet</button><div class="rules"><h3>Sentence rules</h3><small>Just counting sentences! Turn a rule off if it is not right for your class.</small><label><input type="checkbox" data-rule="reviewMissingPunctuation" checked> Review possible missing punctuation</label><label><input type="checkbox" data-rule="lineBreaks" checked> Count each nonempty line separately</label><label><input type="checkbox" data-rule="ellipses" checked> Treat ellipses as sentence breaks</label></div><div class="note">Preferences stay saved in Chrome · v1.0.1</div><div class="actions"><button data-action="back">← Back to grading</button></div></div>';
   shadow.append(panel);
   const summary = panel.querySelector('[data-summary]');
   const results = panel.querySelector('[data-results]');
@@ -139,6 +140,7 @@
   panel.querySelector('[data-toolbar]').insertAdjacentHTML('afterend', '<section class="complete hidden" data-complete><div class="symbol">💜</div><h3 data-complete-message>Nice work. Nothing to do here!</h3><p>Every visible answer has a score.</p><div class="pending-save hidden" data-pending-save>Everything is scored! Save these changes to lock them in.<button data-action="complete-save">Save grades</button></div><button class="celebrate" data-action="celebrate">🎉 Launch confetti!</button><button class="back-link" data-action="review-anyway">Back to grading</button></section>');
   const completeSection = panel.querySelector('[data-complete]');
   panel.querySelector('.settings-page .checks').insertAdjacentHTML('afterend', '<label class="name-setting" for="sentence-grader-name">Grader name<input id="sentence-grader-name" data-grader-name type="text" maxlength="30" value="Berlin" autocomplete="off" placeholder="Berlin"></label>');
+  panel.querySelector('.rules').insertAdjacentHTML('beforeend', '<small>When punctuation review is off, an answer with no sentence-ending punctuation may count as just one sentence. You still make the final grading decision.</small>');
 
   trigger.addEventListener('click', () => {
     // The compact launcher is also a manual reset if the teacher scrolled up
@@ -182,6 +184,14 @@
       chrome.storage.local.set({ sentenceGraderPreferences: preferences });
     });
   }
+  for (const input of panel.querySelectorAll('[data-rule]')) {
+    input.addEventListener('change', () => {
+      preferences.rules[input.dataset.rule] = input.checked;
+      chrome.storage.local.set({ sentenceGraderPreferences: preferences });
+      clearReviewMarks();
+      scan();
+    });
+  }
   const volumeInput = panel.querySelector('[data-volume]');
   volumeInput.addEventListener('input', () => {
     preferences.volume = Number(volumeInput.value);
@@ -206,6 +216,11 @@
     panel.querySelector('[data-volume-label]').textContent = `${preferences.volume}%`;
     if (typeof saved.graderName === 'string') preferences.graderName = saved.graderName.trim().slice(0, 30) || 'Berlin';
     panel.querySelector('[data-grader-name]').value = preferences.graderName;
+    for (const key of Object.keys(preferences.rules)) {
+      if (typeof saved.rules?.[key] === 'boolean') preferences.rules[key] = saved.rules[key];
+      panel.querySelector(`[data-rule="${key}"]`).checked = preferences.rules[key];
+    }
+    if (opened) scan();
   });
 
   function updatePanelLayout() {
@@ -244,38 +259,22 @@
     if (!badge) {
       badge = document.createElement('span');
       badge.className = 'sentence-grader-count';
-      badge.style.cssText = 'position:absolute;top:9px;right:14px;padding:3px 8px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;z-index:2;pointer-events:none;box-shadow:0 1px 5px #0001';
-      if (getComputedStyle(e.card).position === 'static') e.card.style.position = 'relative';
-      e.card.append(badge);
     }
+    // Make this a quiet, right-aligned row AFTER the answer rather than a
+    // positioned overlay: long student paragraphs can reach the right edge.
+    badge.style.cssText = 'display:table;width:max-content;max-width:100%;margin:6px 0 8px auto;padding:3px 9px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;pointer-events:none';
+    const answerRow = e.answerNode.closest('.vnb4ld') || e.answerNode;
+    if (answerRow.nextElementSibling !== badge) answerRow.insertAdjacentElement('afterend', badge);
     badge.textContent = `${e.analysis.count} ${e.analysis.count === 1 ? 'sentence' : 'sentences'}`;
   }
 
   function clearReviewMarks() {
     reviewEntry = null;
-    reviewMarks.splice(0).forEach(mark => mark.remove());
-    if (hoverTip) { hoverTip.remove(); hoverTip = null; }
-    clearTimeout(tooltipDismiss);
-  }
-
-  function scheduleTipHide() {
-    clearTimeout(tooltipDismiss);
-    tooltipDismiss = setTimeout(() => { hoverTip?.remove(); hoverTip = null; }, 1000);
-  }
-
-  function showReviewTip(reason, rect) {
-    clearTimeout(tooltipDismiss);
-    if (!hoverTip) {
-      hoverTip = document.createElement('div');
-      hoverTip.className = 'review-tip';
-      hoverTip.setAttribute('role', 'tooltip');
-      hoverTip.addEventListener('mouseenter', () => clearTimeout(tooltipDismiss));
-      hoverTip.addEventListener('mouseleave', scheduleTipHide);
-      shadow.append(hoverTip);
-    }
-    hoverTip.textContent = reason;
-    hoverTip.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 305))}px`;
-    hoverTip.style.top = `${rect.top > 85 ? rect.top - 75 : rect.bottom + 9}px`;
+    reviewMarkupKey = '';
+    reviewMarks.splice(0).forEach(({ mark, tooltip }) => {
+      tooltip?.destroy();
+      mark.remove();
+    });
   }
 
   function answerRange(node, start, end) {
@@ -300,29 +299,68 @@
   }
 
   function drawReviewMarks() {
-    reviewMarks.splice(0).forEach(mark => mark.remove());
     const e = reviewEntry;
-    if (!e?.answerNode?.isConnected || !e.analysis.issues?.length) return;
+    if (!e?.answerNode?.isConnected || !e.analysis.issues?.length) {
+      if (reviewMarks.length) clearReviewMarks();
+      return;
+    }
     const displayed = e.answerNode.textContent || '';
+    const positions = [];
     for (const issue of e.analysis.issues) {
       const fragment = e.answer.slice(issue.start, issue.end);
       const at = displayed === e.answer ? issue.start : displayed.indexOf(fragment);
-      if (at < 0) continue;
+      if (at < 0) {
+        debug('review underline not found in answer text', { length: fragment.length });
+        continue;
+      }
       const range = answerRange(e.answerNode, at, at + fragment.length);
       if (!range) continue;
       for (const rect of range.getClientRects()) {
         if (rect.width < 2 || rect.bottom < 0 || rect.top > window.innerHeight) continue;
-        const mark = document.createElement('div');
-        mark.className = 'review-squiggle';
-        mark.style.left = `${rect.left}px`;
-        mark.style.top = `${rect.bottom - 4}px`;
-        mark.style.width = `${rect.width}px`;
-        mark.setAttribute('aria-label', issue.reason);
-        mark.addEventListener('mouseenter', () => showReviewTip(issue.reason, rect));
-        mark.addEventListener('mouseleave', scheduleTipHide);
-        shadow.append(mark);
-        reviewMarks.push(mark);
+        positions.push({ rect, reason: issue.reason });
       }
+    }
+    // Keep the same underline nodes alive while scrolling. Recreating them on
+    // every frame previously broke the hover state and detached the tooltip.
+    positions.forEach(({ rect, reason }, index) => {
+      let item = reviewMarks[index];
+      if (!item || item.reason !== reason) {
+        if (item) { item.tooltip?.destroy(); item.mark.remove(); }
+        const mark = document.createElement('span');
+        mark.className = 'review-squiggle';
+        mark.tabIndex = 0;
+        mark.setAttribute('aria-label', reason);
+        shadow.append(mark);
+        const tooltip = typeof tippy === 'function' ? tippy(mark, {
+          content: reason,
+          theme: 'sentence-grader',
+          placement: 'top',
+          appendTo: () => document.body,
+          interactive: true,
+          interactiveBorder: 12,
+          delay: [130, 1000],
+          duration: [170, 180],
+          hideOnClick: false,
+          maxWidth: 300,
+          zIndex: 2147483647
+        }) : null;
+        if (!tooltip) mark.title = reason;
+        item = { mark, tooltip, reason };
+        reviewMarks[index] = item;
+      }
+      item.mark.style.left = `${rect.left}px`;
+      item.mark.style.top = `${rect.bottom - 4}px`;
+      item.mark.style.width = `${rect.width}px`;
+      item.tooltip?.popperInstance?.update();
+    });
+    for (const item of reviewMarks.splice(positions.length)) {
+      item.tooltip?.destroy();
+      item.mark.remove();
+    }
+    const key = `${e.answer.length}:${e.analysis.issues.length}:${positions.length}`;
+    if (reviewMarkupKey !== key) {
+      reviewMarkupKey = key;
+      debug('review underline spans', { issues: e.analysis.issues.length, visibleSpans: positions.length });
     }
   }
 
@@ -332,8 +370,10 @@
       const input = card.querySelector(INPUT_SELECTOR);
       const answerNodes = card.querySelectorAll(ANSWER_SELECTOR);
       if (!input || answerNodes.length !== 1) continue;
-      const answer = answerNodes[0].innerText || answerNodes[0].textContent || '';
-      const analysis = SentenceGrader.analyze(answer);
+      // Match DOM text offsets for reliable range highlights. innerText may
+      // normalize invisible line breaks differently from textContent.
+      const answer = answerNodes[0].textContent || answerNodes[0].innerText || '';
+      const analysis = SentenceGrader.analyze(answer, preferences.rules);
       const blank = input.value.trim() === '';
       const entry = { card, input, answerNode: answerNodes[0], answer, analysis, blank };
       entries.push(entry);
@@ -397,7 +437,9 @@
       anchorEntry = e;
       reviewEntry = e.analysis.issues?.length ? e : null;
       if (!reviewEntry) clearReviewMarks();
-      e.card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Start at the top so the teacher can read the entire answer. The panel
+      // stays compact until scrolling down reveals the grading controls.
+      e.card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       e.card.animate([
         { outline: '3px solid #e6bd58', outlineOffset: '3px', boxShadow: '0 0 0 8px #e6bd5820' },
         { outline: '3px solid #f6e6b2', outlineOffset: '3px', boxShadow: '0 0 0 14px #e6bd5800' },
@@ -684,7 +726,7 @@
     const current = [...document.querySelectorAll(CARD_SELECTOR)].map(card => {
       const input = card.querySelector(INPUT_SELECTOR);
       const answer = card.querySelector(ANSWER_SELECTOR);
-      return input && answer ? `${input.value}|${answer.innerText || answer.textContent || ''}` : '';
+      return input && answer ? `${input.value}|${answer.textContent || answer.innerText || ''}` : '';
     }).filter(Boolean).join('\uE001');
     if (current !== visibleSignature) scan();
     // Save bar can come and go without changing the actual input values.

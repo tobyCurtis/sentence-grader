@@ -76,3 +76,30 @@ test('long natural descriptions remain eligible for fill', () => {
 test('empty answer is flagged', () => {
   assert.equal(analyze(' ').confident, false);
 });
+test('teacher can disable the missing punctuation review gate', () => {
+  const text = 'I went to the beach I found a shell My friend saw a bird We built a sandcastle';
+  assert.equal(analyze(text).confident, false);
+  const relaxed = analyze(text, { reviewMissingPunctuation: false });
+  assert.equal(relaxed.count, 1);
+  assert.equal(relaxed.confident, true);
+  assert.deepEqual(relaxed.issues, []);
+});
+test('teacher can choose whether nonempty lines separate sentences', () => {
+  const text = 'I walked outside\nI saw a bird';
+  assert.equal(analyze(text).count, 2);
+  assert.equal(analyze(text, { lineBreaks: false, reviewMissingPunctuation: false }).count, 1);
+});
+test('teacher can choose whether ellipses separate sentences', () => {
+  const text = 'I waited... and waited. We finally left.';
+  assert.equal(analyze(text).count, 3);
+  assert.equal(analyze(text, { ellipses: false }).count, 2);
+});
+test('a long multiline answer still identifies ambiguity if Forms collapses its newlines', () => {
+  const collapsed = 'I like visiting the aquarium because I can watch jellyfish without having bones My favorite exhibit has a huge window where sharks swim Last time I went we listened to a guide We spent a long time at the touch pool Before we left I bought a postcard I hope to return';
+  const analysis = analyze(collapsed);
+  assert.equal(analysis.count, 1);
+  assert.ok(analysis.issues.length > 0);
+  const issue = analysis.issues[0];
+  assert.ok(issue.end > issue.start);
+  assert.match(collapsed.slice(issue.start, issue.end), /My favorite|Last time|We spent/);
+});

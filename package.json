@@ -5,7 +5,7 @@
   "description": "A friendly, privacy-conscious Chrome extension for Google Forms sentence-count grading.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check grader.js && node --check confetti.js && node --check content.js && npm test"
+    "check": "node --check vendor/popper.min.js && node --check vendor/tippy.umd.min.js && node --check grader.js && node --check confetti.js && node --check content.js && npm test"
   },
   "engines": {
     "node": ">=18"

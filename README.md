@@ -21,10 +21,10 @@ Some writing assignments ask students to write at least six complete sentences. 
 - **Counts likely sentences** and proposes scores according to a simple rubric.
 - **Flags uncertain answers** for manual review instead of automatically filling them.
 - **Fills blank scores only**, preserving grades you've already entered.
-- **Shows sentence-count badges** directly on response cards and hides scored answers from the normal review list.
+- **Shows sentence-count badges** in their own small row beneath each response and hides scored answers from the normal review list.
 - **Jumps to the next ungraded answer** with a gentle highlight on the Google Forms card and the matching preview.
 - **Adapts to smaller screens.** After Next ungraded, the panel shrinks to keep the active score box clear, and the launcher returns if there's no room.
-- **Marks ambiguous text** with a subtle squiggly underline and an explanation on hover.
+- **Marks ambiguous text** with a subtle squiggly underline and a themed Tippy.js explanation that follows its target as the page scrolls.
 - **Uses Google Forms' own Save grades control** rather than submitting grades through a separate service.
 - **Celebrates progress** with personalized motivational toasts, optional confetti, and a tiny trumpet fanfare. 🎺
 - **Remembers preferences**, including the grader's name. (Hi, Berlin! 👋)
@@ -93,7 +93,7 @@ Some intentional conventions:
 
 1. **Open Sentence Grader.** Count badges appear on each visible response, and the panel proposes scores for ungraded ones.
 2. Click **Fill blanks** to populate confidently detected, empty score fields.
-3. Click **Next ungraded** to find a response that needs attention. The panel slides below its score box, and strong punctuation ambiguities receive a squiggly underline with a hover explanation.
+3. Click **Next ungraded** to find a response that needs attention. The card aligns with the top of the viewport so you can read it first; the panel expands as you scroll toward the score box. Strong punctuation ambiguities receive a squiggly underline with a hover explanation.
 4. Review or edit the grades.
 5. Click **Save grades** in Google Forms, or use the extension's Save button when the native control is available.
 6. When every visible response has a score, the all-done screen invites you to **Launch confetti!** You earned it. 🎉 Native ✓ and ✕ actions get progress toasts too.
@@ -110,14 +110,17 @@ Open the gear icon in the extension header:
 | Finish-line confetti | Automatic confetti after an acknowledged final save |
 | Celebration volume | Short locally synthesized fanfare; slide to zero to mute |
 | Grader name | Occasional personal encouragement; defaults to **Berlin** |
+| Review missing punctuation | Hold obviously ambiguous answers for a teacher's decision (on by default) |
+| Count separate lines | Treat each nonempty line as a sentence boundary (on by default) |
+| Ellipses as boundaries | Count an ellipsis as a sentence break (on by default) |
 
-Preferences persist locally in Chrome. There's a **Test trumpet** button to check audio playback. Messages span decades, from “bee's knees” to “main-character energy,” and rotate to avoid repetition. Toasts are slightly larger and animate gently; reduced-motion preferences are respected.
+Preferences persist locally in Chrome. There's a **Test trumpet** button to check audio playback. Messages span decades, from “bee's knees” to “main-character energy,” and rotate to avoid repetition. Toasts are slightly larger and animate gently; reduced-motion preferences are respected. Sentence-rule changes affect suggestions and review flags, not already-entered grades.
 
 ## Privacy and permissions 🔒
 
 The manifest requests only the `storage` extension permission, which remembers the grader's name and celebration settings. The content script runs only on Google Forms editor URLs: `https://docs.google.com/forms/d/*/edit*`.
 
-Student answers are read in-memory to count sentences and display a local preview. The extension doesn't send them anywhere, store them, or include them in reports. No third-party scripts, analytics, external fonts, or grading servers.
+Student answers are read in-memory to count sentences and display a local preview. The extension doesn't send them anywhere, store them, or include them in reports. Tippy.js and Popper are bundled locally, with their licenses recorded in [vendor/THIRD_PARTY_NOTICES.md](vendor/THIRD_PARTY_NOTICES.md). There are no CDN requests, analytics, external fonts, or grading servers.
 
 See [PRIVACY.md](PRIVACY.md) for more detail.
 
@@ -148,6 +151,7 @@ sentence-grader/
 ├── grader.js           Sentence-counting logic
 ├── confetti.js         Local canvas confetti
 ├── icons/              SVG source and Chrome PNG icons
+├── vendor/             Local Tippy.js, Popper, CSS and license notices
 ├── tests/              Sentence-counting tests
 ├── manual-tests/       Browser smoke test (requires runnable Chromium)
 ├── PRIVACY.md          Data handling and permissions
