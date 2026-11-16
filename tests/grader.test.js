@@ -32,18 +32,27 @@ test('ellipses are sentence boundaries', () => {
   assert.equal(analyze('I opened the old box... and found a letter. It had no name on it.').count, 3);
 });
 test('missing punctuation between sentences requires review', () => {
-  const result = analyze('I went to the beach I found a shell My friend saw a bird We built a sandcastle');
+  const text = 'I went to the beach I found a shell My friend saw a bird We built a sandcastle';
+  const result = analyze(text);
   assert.equal(result.confident, false);
   assert.match(result.warnings.join(' '), /missing punctuation/);
+  assert.ok(result.issues.length >= 2);
+  assert.match(text.slice(result.issues[0].start, result.issues[0].end), /I found/);
+  assert.ok(result.issues.every(({ start, end }) => end - start < 25));
+  assert.ok(result.issues.every(({ start, end }) => text.slice(start, end).split(' ').length <= 2));
 });
-test('possible fragments are flagged', () => {
-  assert.equal(analyze('The beautiful beach. Lots of sunshine. Very peaceful.').confident, false);
+test('fragments count as written, without grammar flags', () => {
+  const result = analyze('The beautiful beach. Lots of sunshine. Very peaceful.');
+  assert.equal(result.count, 3);
+  assert.equal(result.confident, true);
 });
 test('run-on sentence counts as one', () => {
   assert.equal(analyze('I went outside and I saw a bird and we played soccer and then we went home.').count, 1);
 });
-test('numbered lists require review', () => {
-  assert.equal(analyze('1. The beach\n2. The mountains').confident, false);
+test('numbered list entries count by their text', () => {
+  const result = analyze('1. The beach\n2. The mountains');
+  assert.equal(result.count, 2);
+  assert.equal(result.confident, true);
 });
 test('repeated punctuation counts once', () => {
   assert.equal(analyze('It was amazing!!! I loved it!!').count, 2);
@@ -51,9 +60,50 @@ test('repeated punctuation counts once', () => {
 test('parenthetical punctuation does not add a sentence', () => {
   assert.equal(analyze('I went to the beach (my favorite place). We swam.').count, 2);
 });
-test('one-word statements require teacher review', () => {
-  assert.equal(analyze('Yes. No. Okay. Fine.').confident, false);
+test('one-word statements count without judgment', () => {
+  const result = analyze('Yes. No. Okay. Fine.');
+  assert.equal(result.count, 4);
+  assert.equal(result.confident, true);
+});
+test('quoted punctuation ends a sentence without phantom quote sentences', () => {
+  assert.equal(analyze('She whispered, “Go now.” We left.').count, 2);
+});
+test('punctuation inside parentheses does not create extra sentences', () => {
+  assert.equal(analyze('I liked the museum (it was busy. Lots of people). We left.').count, 2);
+});
+test('long natural descriptions remain eligible for fill', () => {
+  const answer = 'Last Saturday my family and I visited the beach near our house, and we brought snacks, towels, sunscreen, and a big blue umbrella because we planned to stay until the afternoon. When we arrived, the tide was low enough that I could walk along the wet sand and look into little pools of water where tiny crabs and colorful shells were hiding. My younger brother wanted to build the biggest sandcastle anyone had ever seen, so we spent a long time collecting buckets of water and decorating the towers with pebbles.';
+  assert.equal(analyze(answer).count, 3);
+  assert.equal(analyze(answer).confident, true);
 });
 test('empty answer is flagged', () => {
   assert.equal(analyze(' ').confident, false);
+});
+test('teacher can disable the missing punctuation review gate', () => {
+  const text = 'I went to the beach I found a shell My friend saw a bird We built a sandcastle';
+  assert.equal(analyze(text).confident, false);
+  const relaxed = analyze(text, { reviewMissingPunctuation: false });
+  assert.equal(relaxed.count, 1);
+  assert.equal(relaxed.confident, true);
+  assert.deepEqual(relaxed.issues, []);
+});
+test('teacher can choose whether nonempty lines separate sentences', () => {
+  const text = 'I walked outside\nI saw a bird';
+  assert.equal(analyze(text).count, 2);
+  assert.equal(analyze(text, { lineBreaks: false, reviewMissingPunctuation: false }).count, 1);
+});
+test('teacher can choose whether ellipses separate sentences', () => {
+  const text = 'I waited... and waited. We finally left.';
+  assert.equal(analyze(text).count, 3);
+  assert.equal(analyze(text, { ellipses: false }).count, 2);
+});
+test('a long multiline answer still identifies ambiguity if Forms collapses its newlines', () => {
+  const collapsed = 'I like visiting the aquarium because I can watch jellyfish without having bones My favorite exhibit has a huge window where sharks swim Last time I went we listened to a guide We spent a long time at the touch pool Before we left I bought a postcard I hope to return';
+  const analysis = analyze(collapsed);
+  assert.equal(analysis.count, 1);
+  assert.ok(analysis.issues.length > 0);
+  const issue = analysis.issues[0];
+  assert.ok(issue.end > issue.start);
+  assert.match(collapsed.slice(issue.start, issue.end), /My favorite|Last time|We spent/);
+  assert.ok(analysis.issues.every(({ start, end }) => end - start < 25));
 });

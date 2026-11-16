@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sentence Grader for Google Forms",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "permissions": ["storage"],
   "icons": {
     "16": "icons/icon16.png",
@@ -13,7 +13,8 @@
   "content_scripts": [
     {
       "matches": ["https://docs.google.com/forms/d/*/edit*"],
-      "js": ["grader.js", "confetti.js", "content.js"],
+      "css": ["vendor/tippy.css", "vendor/tippy-theme.css"],
+      "js": ["vendor/popper.min.js", "vendor/tippy.umd.min.js", "grader.js", "confetti.js", "content.js"],
       "run_at": "document_idle"
     }
   ]

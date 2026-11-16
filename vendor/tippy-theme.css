@@ -1,0 +1,17 @@
+.tippy-box[data-theme~='sentence-grader'] {
+  background: #f4effc;
+  color: #442773;
+  border: 1px solid #d8c8ef;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px #0002;
+  font: 12px/1.35 Roboto, Arial, sans-serif;
+}
+.tippy-box[data-theme~='sentence-grader'] .tippy-content {
+  padding: 7px 10px;
+}
+.tippy-box[data-theme~='sentence-grader'][data-placement^='top'] > .tippy-arrow::before {
+  border-top-color: #f4effc;
+}
+.tippy-box[data-theme~='sentence-grader'][data-placement^='bottom'] > .tippy-arrow::before {
+  border-bottom-color: #f4effc;
+}

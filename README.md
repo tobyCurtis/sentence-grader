@@ -8,7 +8,7 @@
 
 A friendly Chrome extension that helps teachers grade sentence-count responses in Google Forms, one little victory at a time.
 
-![Version](https://img.shields.io/badge/version-1.0.0-673ab7) ![Manifest](https://img.shields.io/badge/Chrome-Manifest%20V3-673ab7) ![Privacy](https://img.shields.io/badge/Privacy-on--device-5f35a8)
+![Version](https://img.shields.io/badge/version-1.0.1-673ab7) ![Manifest](https://img.shields.io/badge/Chrome-Manifest%20V3-673ab7) ![Privacy](https://img.shields.io/badge/Privacy-on--device-5f35a8)
 
 </div>
 
@@ -21,7 +21,10 @@ Some writing assignments ask students to write at least six complete sentences. 
 - **Counts likely sentences** and proposes scores according to a simple rubric.
 - **Flags uncertain answers** for manual review instead of automatically filling them.
 - **Fills blank scores only**, preserving grades you've already entered.
-- **Jumps to the next ungraded answer** with a gentle highlight on the Google Forms card and the matching preview.
+- **Shows sentence-count badges** in their own small row beneath each response and hides scored answers from the normal review list.
+- **Jumps to the next ungraded answer** with a gentle highlight on the Google Forms card and the matching preview, including after the native ✓ and ✕ grading buttons update a score.
+- **Adapts to smaller screens.** After Next ungraded, the panel shrinks to keep the active score box clear, and the launcher returns if there's no room.
+- **Marks ambiguous text** with short squiggly underlines on the suspected sentence starts, plus compact, locally bundled Tippy.js explanations anchored to each mark with extra spacing and constrained to the visible Forms scroll area.
 - **Uses Google Forms' own Save grades control** rather than submitting grades through a separate service.
 - **Celebrates progress** with personalized motivational toasts, optional confetti, and a tiny trumpet fanfare. 🎺
 - **Remembers preferences**, including the grader's name. (Hi, Berlin! 👋)
@@ -49,12 +52,12 @@ Want a safe place to test the extension without touching classroom data? The rep
 2. Open the default `Code.gs` editor, remove the starter function, and paste in the contents of `scripts/create-test-form.gs`.
 3. Select `setupSentenceGraderTest` in the function dropdown and click **Run**. You do **not** need to Deploy the script.
 4. On the first run, approve the Google Forms and script-property permissions requested by Apps Script. Use your own test account.
-5. Open the **Execution log**. Copy the **FORM EDIT URL** and open it in Chrome.
+5. Open the **Execution log**. At the very end, find the direct edit URL on its own line. Click it if Apps Script makes it a link, or copy it into Chrome.
 6. In the Form editor, select **Responses → Question**, choose the six-point writing question, and open Sentence Grader from the purple launcher.
 
-The script creates a new quiz with a zero-point test ID question, a six-point paragraph question, and **12 fictional submissions** covering normal sentences, punctuation, abbreviations, ellipses, missing punctuation, and fragments. The writing answers start ungraded, ready for a real workflow test.
+The script creates a new quiz with a zero-point test ID question, a six-point paragraph question, and **12 fictional submissions**. It includes several longer student-style responses, along with abbreviations, quotations, ellipses, missing punctuation, and fragments. The writing answers start ungraded, ready for a real workflow test.
 
-**A fresh form every time:** Running `setupSentenceGraderTest` creates a **new** Form, with a timestamp in its title and 12 new fictional responses. Earlier Forms stay untouched. To resume the latest test form and add only missing cases, run `reuseLatestSentenceGraderTest` instead. The older `createFreshSentenceGraderTest` command also creates a new one.
+**A fresh form every time:** Running `setupSentenceGraderTest` always creates a **new** Form with a timestamp in its title and 12 new fictional responses. Previous test forms remain untouched. If you want to return to the latest form and add only missing cases, choose `reuseLatestSentenceGraderTest` instead. The older `createFreshSentenceGraderTest` command also creates a new form.
 
 > **Please don't run the fixture against a real class Form.** It is a standalone script that generates fictional data under your account. Test with that Form first, and always verify scores after saving and reloading. Apps Script doesn't need to be deployed as a web app.
 
@@ -71,7 +74,7 @@ This rubric is fixed in v1.0 and expects a **six-point** Google Forms question.
 
 ### The human-in-the-loop part
 
-Sentence counting isn't the same as determining whether a sentence is grammatically complete. This extension uses local, rule-based detection and flags suspicious cases like fragments, numbered lists, and possible missing punctuation between sentences.
+Sentence counting isn't the same as determining whether a sentence is grammatically complete. Following teacher feedback, **v1.0.1 counts sentences without policing grammar**. Fragments, very short answers, and list-style answers are counted by their text. Only especially ambiguous missing punctuation and empty answers hold back automatic filling.
 
 Some intentional conventions:
 
@@ -81,17 +84,19 @@ Some intentional conventions:
 - Repeated exclamation/question marks count as one boundary.
 - Common abbreviations and decimal points are not sentence endings.
 - A run-on without punctuation generally counts as one sentence.
+- Punctuation inside parentheses does not create extra sentence boundaries.
+- Punctuation inside quotes *does* end a sentence.
 
 **Always review the preview and scores before saving.** Students deserve a teacher's judgment, not a punctuation-only verdict.
 
 ## A typical grading session
 
-1. **Open Sentence Grader.** The panel proposes counts and shows manual-review warnings.
+1. **Open Sentence Grader.** Count badges appear on each visible response, and the panel proposes scores for ungraded ones.
 2. Click **Fill blanks** to populate confidently detected, empty score fields.
-3. Click **Next ungraded** to find a response that needs attention, highlighted in Google Forms and the extension preview.
+3. Click **Next ungraded** to find a response that needs attention. The card aligns with the top of the viewport so you can read it first; the panel expands as you scroll toward the score box. Strong punctuation ambiguities receive a squiggly underline with a hover explanation.
 4. Review or edit the grades.
 5. Click **Save grades** in Google Forms, or use the extension's Save button when the native control is available.
-6. When every visible response has a score, the all-done screen invites you to **Launch confetti!** You earned it. 🎉
+6. When every visible response has a score, the all-done screen invites you to **Launch confetti!** You earned it. 🎉 Native ✓ and ✕ actions get progress toasts too.
 
 The toolbar stays at the top while the answer preview scrolls.
 
@@ -103,16 +108,19 @@ Open the gear icon in the extension header:
 | --- | --- |
 | Encouragement toasts | Small purple progress messages |
 | Finish-line confetti | Automatic confetti after an acknowledged final save |
-| Celebration trumpet | Short locally synthesized fanfare |
+| Celebration volume | Short locally synthesized fanfare; slide to zero to mute |
 | Grader name | Occasional personal encouragement; defaults to **Berlin** |
+| Review missing punctuation | Hold obviously ambiguous answers for a teacher's decision (on by default) |
+| Count separate lines | Treat each nonempty line as a sentence boundary (on by default) |
+| Ellipses as boundaries | Count an ellipsis as a sentence break (on by default) |
 
-Preferences persist locally in Chrome. There's a **Test trumpet** button to check audio playback. Messages span decades, from “bee's knees” to “main-character energy,” and rotate to avoid repetition.
+Preferences persist locally in Chrome. There's a **Test trumpet** button to check audio playback. Messages span decades, from “bee's knees” to “main-character energy,” and rotate to avoid repetition. Toasts are slightly larger and animate gently; reduced-motion preferences are respected. Sentence-rule changes affect suggestions and review flags, not already-entered grades.
 
 ## Privacy and permissions 🔒
 
 The manifest requests only the `storage` extension permission, which remembers the grader's name and celebration settings. The content script runs only on Google Forms editor URLs: `https://docs.google.com/forms/d/*/edit*`.
 
-Student answers are read in-memory to count sentences and display a local preview. The extension doesn't send them anywhere, store them, or include them in reports. No third-party scripts, analytics, external fonts, or grading servers.
+Student answers are read in-memory to count sentences and display a local preview. The extension doesn't send them anywhere, store them, or include them in reports. Tippy.js and Popper are bundled locally, with their licenses recorded in [vendor/THIRD_PARTY_NOTICES.md](vendor/THIRD_PARTY_NOTICES.md). There are no CDN requests, analytics, external fonts, or grading servers.
 
 See [PRIVACY.md](PRIVACY.md) for more detail.
 
@@ -143,7 +151,9 @@ sentence-grader/
 ├── grader.js           Sentence-counting logic
 ├── confetti.js         Local canvas confetti
 ├── icons/              SVG source and Chrome PNG icons
+├── vendor/             Local Tippy.js, Popper, CSS and license notices
 ├── tests/              Sentence-counting tests
+├── manual-tests/       Browser smoke test (requires runnable Chromium)
 ├── PRIVACY.md          Data handling and permissions
 └── README.md           You are here
 ```
@@ -158,6 +168,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Project status
 
-**v1.0.0: first public source release.** Tested against synthetic Google Forms responses and a growing suite of sentence edge cases. Google Forms UI compatibility is subject to live checks as Google updates its editor.
+**v1.0.1: live-feedback test candidate.** The sentence counter passes its test suite. Browser interactions still need hands-on confirmation on the new fictional Form, particularly at Berlin's screen size. Google Forms UI compatibility is subject to changes in Google's editor.
 
 Made with 💜 for teachers who deserve a little celebration after a lot of grading.
