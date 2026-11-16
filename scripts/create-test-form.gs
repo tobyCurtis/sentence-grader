@@ -7,24 +7,62 @@
  */
 
 const SENTENCE_GRADER_TEST = {
-  propertyKey: 'SENTENCE_GRADER_PUBLIC_TEST_FORM_ID_V1',
-  title: 'Sentence Grader - Extension Test',
+  propertyKey: 'SENTENCE_GRADER_LONG_TEST_FORM_ID_V2',
+  title: 'Sentence Grader - Long Response Test',
   idQuestion: 'Test student ID',
   writingQuestion: 'Describe a place you enjoy visiting. Write at least six complete sentences.'
 };
 
 const SENTENCE_GRADER_CASES = [
-  { id: 'S01', scenario: 'Six ordinary sentences', answer: 'I visited the beach. The sand felt cool. I watched the waves. A dog ran nearby. The sky was blue. I went home happy.' },
-  { id: 'S02', scenario: 'Three sentences', answer: 'The park is peaceful. I like the trees. I visit often.' },
-  { id: 'S03', scenario: 'Four sentences', answer: 'We walked downtown. We found a cafe. The food was delicious. We went home.' },
+  { id: 'S01', scenario: 'Long six-sentence response (beach)', answer: [
+    'Last Saturday my family and I visited the beach near our house, and we brought snacks, towels, sunscreen, and a big blue umbrella because we planned to stay until the afternoon.',
+    'When we arrived, the tide was low enough that I could walk along the wet sand and look into little pools of water where tiny crabs and colorful shells were hiding.',
+    'My younger brother wanted to build the biggest sandcastle anyone had ever seen, so we spent a long time collecting buckets of water and decorating the towers with pebbles.',
+    'After lunch I sat on my towel and watched people flying kites while the waves made a steady sound that helped me relax even though the beach was crowded.',
+    'Before we left, my mom took a picture of our sandcastle and I noticed that the water had started creeping closer to the walls we worked so hard to build.',
+    'I hope we can visit again next weekend because being outside with my family is one of my favorite ways to spend a sunny day.'
+  ].join(' ') },
+  { id: 'S02', scenario: 'Long three-sentence response (park)', answer: [
+    'The park near my grandmother’s house is my favorite place because it has a walking trail that goes around a small lake, a playground with tall swings, and a grassy hill where everyone brings blankets for picnics.',
+    'One afternoon I spent almost two hours there watching ducks swim across the water and helping my cousin learn to ride a bicycle without training wheels while our grandparents cheered us on.',
+    'I always feel peaceful when I visit that park, especially when the sun starts going down and the trees make long shadows on the path.'
+  ].join(' ') },
+  { id: 'S03', scenario: 'Long four-sentence response (museum)', answer: [
+    'My class took a field trip to the science museum, and I was excited because our teacher said we would get to touch some of the exhibits instead of only looking at pictures in a book.',
+    'The first room had a giant model of the solar system hanging from the ceiling, and a volunteer explained how long it would take to travel between the planets if we could ride a spaceship.',
+    'Later we tried an experiment with magnets, built a small bridge out of wooden blocks, and watched a machine launch colorful balls into the air.',
+    'The museum was so interesting that I asked my family if we could go back on a weekend and spend more time in the space room.'
+  ].join(' ') },
   { id: 'S04', scenario: 'Five sentences', answer: 'I woke up early. I made breakfast. I walked to school. I met my friends. We started our project.' },
-  { id: 'S05', scenario: 'Seven sentences', answer: 'The trail was quiet. Birds sang above us. We crossed a bridge. I took a picture. The clouds moved quickly. We rested under a tree. Then we continued.' },
+  { id: 'S05', scenario: 'Long seven-sentence response (hike)', answer: [
+    'During spring break I went hiking with my uncle on a trail that started behind a visitor center and climbed slowly into the hills.',
+    'We carried bottles of water and a bag of trail mix because he told me the hike would take several hours if we stopped to explore.',
+    'Near the beginning we saw a deer standing quietly beside a fallen tree, and I tried to take a photo without making any noise.',
+    'Farther up the trail, we crossed a wooden bridge over a creek that was flowing much faster than I expected after all the rain.',
+    'My legs got tired when the path became steep, but my uncle encouraged me to keep going until we reached a lookout point.',
+    'From the top we could see the ocean in the distance, and the clouds cast enormous moving shadows over the green fields below.',
+    'I felt proud when we finally made it back to the car because I had never completed a hike that long before.'
+  ].join(' ') },
   { id: 'S06', scenario: 'Abbreviation and decimal', answer: 'Dr. Lee visited us. We spent $3.50 on snacks. It was a lovely day. We laughed together. Then we left. I hope to return.' },
   { id: 'S07', scenario: 'Questions, exclamations, and quotes', answer: 'Where is the trail? Look over there! I saw a sign. My friend said, "This is great!" We kept walking. It was fun.' },
-  { id: 'S08', scenario: 'One sentence per line', answer: 'I like the beach\nI like the park\nI like the forest\nI like the mountains\nI like the river\nI like the lake' },
+  { id: 'S08', scenario: 'Long response with one sentence per line', answer: [
+    'I like visiting the aquarium because I can watch the jellyfish drift through the water and learn how they move without having bones',
+    'My favorite exhibit has a huge window where sharks and rays swim past slowly while everyone stands together and points at them',
+    'Last time I went there with my dad we listened to a guide explain how people can protect the animals that live in the ocean',
+    'We spent a long time at the touch pool because I wanted to understand why the starfish felt different from the smooth shells nearby',
+    'Before we left I bought a postcard with a sea turtle on it so I could remember what we learned during our visit',
+    'I hope to return with my class one day because there are still several rooms that I did not have enough time to explore'
+  ].join('\n') },
   { id: 'S09', scenario: 'Missing punctuation between sentences', answer: 'I went to the beach I found a shell My friend saw a bird We built a sandcastle The tide moved closer We walked home together' },
   { id: 'S10', scenario: 'Ellipsis', answer: 'I opened the old box... and found a letter. It had no name on it. I wondered who had written it. Then I put it away.' },
-  { id: 'S11', scenario: 'Unpunctuated final sentence', answer: 'I love visiting the garden. The flowers are colorful. The bees are busy. The pond is peaceful. We sit on the bench. Then we walk home' },
+  { id: 'S11', scenario: 'Long response with unpunctuated final sentence', answer: [
+    'The botanical garden is a place I enjoy visiting because every season brings different flowers, trees, and insects to look at along the winding paths.',
+    'My mother showed me a section filled with plants from dry deserts, and I was surprised by how many shapes and colors the cactus plants had.',
+    'We stopped beside a pond where dragonflies were flying close to the surface and small fish were hiding under the water lilies.',
+    'After that we walked through a greenhouse that felt warm and humid, even though the weather outside was cool and windy.',
+    'I took notes about some of the plants because I wanted to draw them later in my sketchbook at home.',
+    'The next time we visit I want to bring my friend so I can show her the greenhouse and the pond where we saw the dragonflies'
+  ].join(' ') },
   { id: 'S12', scenario: 'Fragments and short statements', answer: 'The beautiful beach. Lots of sunshine. Very peaceful. Yes. No. I smiled.' }
 ];
 
