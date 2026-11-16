@@ -122,11 +122,14 @@ function setupSentenceGraderTest() {
 
   console.log('New fictional submissions: ' + added);
   console.log('Total responses: ' + form.getResponses().length);
-  console.log('FORM EDIT URL: ' + form.getEditUrl());
   console.log('FORM RESPONDENT URL: ' + form.getPublishedUrl());
   for (const testCase of SENTENCE_GRADER_CASES) {
     console.log(testCase.id + ' | ' + testCase.scenario);
   }
+  // Keep this last, on its own line: Apps Script can display a bare URL as a link.
+  // If the execution log does not hyperlink it, copy/paste the URL into a tab.
+  console.log('Open your test form in edit mode:');
+  console.log(form.getEditUrl());
   return form.getEditUrl();
 }
 
