@@ -57,7 +57,7 @@ Want a safe place to test the extension without touching classroom data? The rep
 
 The script creates a new quiz with a zero-point test ID question, a six-point paragraph question, and **12 fictional submissions**. It includes several longer student-style responses, along with abbreviations, quotations, ellipses, missing punctuation, and fragments. The writing answers start ungraded, ready for a real workflow test.
 
-**Safe to rerun:** The script remembers its test Form ID using Apps Script properties. Subsequent runs reuse the same Form and add only missing case IDs. That means rerunning it will **not** reset existing grades. To start over with a **separate fresh test Form**, choose `createFreshSentenceGraderTest` instead. This does not delete the previous Form.
+**A fresh form every time:** Running `setupSentenceGraderTest` always creates a **new** Form with a timestamp in its title and 12 new fictional responses. Previous test forms remain untouched. If you want to return to the latest form and add only missing cases, choose `reuseLatestSentenceGraderTest` instead. The older `createFreshSentenceGraderTest` command also creates a new form.
 
 > **Please don't run the fixture against a real class Form.** It is a standalone script that generates fictional data under your account. Test with that Form first, and always verify scores after saving and reloading. Apps Script doesn't need to be deployed as a web app.
 

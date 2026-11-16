@@ -262,7 +262,7 @@
     }
     // Make this a quiet, right-aligned row AFTER the answer rather than a
     // positioned overlay: long student paragraphs can reach the right edge.
-    badge.style.cssText = 'display:table;width:max-content;max-width:100%;margin:6px 0 8px auto;padding:3px 9px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;pointer-events:none';
+    badge.style.cssText = 'display:table;width:max-content;max-width:calc(100% - 16px);margin:6px 16px 8px auto;padding:3px 9px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;pointer-events:none';
     const answerRow = e.answerNode.closest('.vnb4ld') || e.answerNode;
     if (answerRow.nextElementSibling !== badge) answerRow.insertAdjacentElement('afterend', badge);
     badge.textContent = `${e.analysis.count} ${e.analysis.count === 1 ? 'sentence' : 'sentences'}`;
