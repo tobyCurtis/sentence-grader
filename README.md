@@ -14,6 +14,13 @@ A friendly Chrome extension that helps teachers grade sentence-count responses i
 
 ---
 
+## See it in action 
+
+![Sentence Grader walkthrough](assets/sentence-grader-demo.gif)
+
+*A quick tour through fictional responses,
+with a well-earned confetti finale.*
+
 ## What it does
 
 Some writing assignments ask students to write at least six complete sentences. Counting and scoring each response manually can take a while. Sentence Grader gives the teacher a head start while keeping them in control of the final grade.
