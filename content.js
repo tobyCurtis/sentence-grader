@@ -27,10 +27,13 @@
   let reviewEntry = null;
   let reviewMarkupKey = '';
   const reviewMarks = [];
+  let reviewBoundEntry = null;
+  let activeReviewTooltip = null;
   let layoutQueued = false;
   const completedMessages = ['Nice work. Nothing to do here! ✨', 'All caught up. Enjoy that little victory.', 'Look at that! Every response scored! 💜', 'A clean slate! You crushed this batch.', 'No loose ends. Beautiful work!', 'You did the thing. Time for a tiny victory lap.'];
   const focusValue = new WeakMap();
   const seenGraded = new WeakSet();
+  const nativeGradePending = new WeakSet();
   const debug = (event, details = {}) => console.info('[Sentence Grader]', event, details);
   const messages = {
     start: ['Nice job getting going! ✨', 'And we’re off! You’ve got this.', 'First steps, big energy.', 'Look at you showing up!'],
@@ -270,11 +273,26 @@
 
   function clearReviewMarks() {
     reviewEntry = null;
+    reviewBoundEntry = null;
     reviewMarkupKey = '';
     reviewMarks.splice(0).forEach(({ mark, tooltip }) => {
       tooltip?.destroy();
       mark.remove();
     });
+    activeReviewTooltip = null;
+  }
+
+  // Forms may scroll an inner response list instead of the browser window.
+  // A tooltip appended to document.body cannot infer that inner boundary from
+  // our fixed-position underline, so pass the answer's scroll container to Popper.
+  function answerScrollContainer(node) {
+    for (let parent = node.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+      const overflowY = getComputedStyle(parent).overflowY;
+      if (/(auto|scroll|overlay)/.test(overflowY) && parent.clientHeight > 0 && parent.scrollHeight > parent.clientHeight + 2) {
+        return parent;
+      }
+    }
+    return null;
   }
 
   function answerRange(node, start, end) {
@@ -306,6 +324,22 @@
     }
     const displayed = e.answerNode.textContent || '';
     const positions = [];
+    const scrollContainer = answerScrollContainer(e.answerNode);
+    if (reviewBoundEntry !== e.input) {
+      reviewMarks.splice(0).forEach(({ mark, tooltip }) => {
+        tooltip?.destroy();
+        mark.remove();
+      });
+      activeReviewTooltip = null;
+      reviewBoundEntry = e.input;
+    }
+    const containerRect = scrollContainer?.getBoundingClientRect();
+    const clip = {
+      left: Math.max(0, containerRect?.left ?? 0),
+      top: Math.max(0, containerRect?.top ?? 0),
+      right: Math.min(window.innerWidth, containerRect?.right ?? window.innerWidth),
+      bottom: Math.min(window.innerHeight, containerRect?.bottom ?? window.innerHeight)
+    };
     for (const issue of e.analysis.issues) {
       const fragment = e.answer.slice(issue.start, issue.end);
       const at = displayed === e.answer ? issue.start : displayed.indexOf(fragment);
@@ -316,8 +350,11 @@
       const range = answerRange(e.answerNode, at, at + fragment.length);
       if (!range) continue;
       for (const rect of range.getClientRects()) {
-        if (rect.width < 2 || rect.bottom < 0 || rect.top > window.innerHeight) continue;
-        positions.push({ rect, reason: issue.reason });
+        if (rect.width < 2 || rect.bottom <= clip.top || rect.top >= clip.bottom) continue;
+        const left = Math.max(rect.left, clip.left);
+        const right = Math.min(rect.right, clip.right);
+        if (right - left < 2) continue;
+        positions.push({ rect: { left, width: right - left, bottom: Math.min(rect.bottom, clip.bottom) }, reason: issue.reason });
       }
     }
     // Keep the same underline nodes alive while scrolling. Recreating them on
@@ -325,7 +362,11 @@
     positions.forEach(({ rect, reason }, index) => {
       let item = reviewMarks[index];
       if (!item || item.reason !== reason) {
-        if (item) { item.tooltip?.destroy(); item.mark.remove(); }
+        if (item) {
+          if (activeReviewTooltip === item.tooltip) activeReviewTooltip = null;
+          item.tooltip?.destroy();
+          item.mark.remove();
+        }
         const mark = document.createElement('span');
         mark.className = 'review-squiggle';
         mark.tabIndex = 0;
@@ -337,11 +378,32 @@
           placement: 'top',
           appendTo: () => document.body,
           interactive: true,
-          interactiveBorder: 12,
+          interactiveBorder: 8,
           delay: [130, 1000],
           duration: [170, 180],
           hideOnClick: false,
-          maxWidth: 300,
+          maxWidth: 235,
+          offset: [0, 18],
+          popperOptions: {
+            strategy: 'fixed',
+            modifiers: [
+              { name: 'flip', options: {
+                boundary: scrollContainer || 'viewport', rootBoundary: 'viewport',
+                padding: 14, fallbackPlacements: ['bottom', 'top']
+              } },
+              { name: 'preventOverflow', options: {
+                boundary: scrollContainer || 'viewport', rootBoundary: 'viewport',
+                padding: 14, altAxis: true, tether: false
+              } }
+            ]
+          },
+          onShow(instance) {
+            if (activeReviewTooltip && activeReviewTooltip !== instance) activeReviewTooltip.hide();
+            activeReviewTooltip = instance;
+          },
+          onHidden(instance) {
+            if (activeReviewTooltip === instance) activeReviewTooltip = null;
+          },
           zIndex: 2147483647
         }) : null;
         if (!tooltip) mark.title = reason;
@@ -354,6 +416,7 @@
       item.tooltip?.popperInstance?.update();
     });
     for (const item of reviewMarks.splice(positions.length)) {
+      if (activeReviewTooltip === item.tooltip) activeReviewTooltip = null;
       item.tooltip?.destroy();
       item.mark.remove();
     }
@@ -602,7 +665,7 @@
     const input = event.target;
     if (!(input instanceof HTMLInputElement) || !input.matches(INPUT_SELECTOR)) return;
     const before = focusValue.get(input);
-    const suppress = autoFillInProgress;
+    const suppress = autoFillInProgress || nativeGradePending.has(input);
     setTimeout(() => {
       const after = input.value.trim();
       const newlyFilled = before === '' && after !== '' && !seenGraded.has(input);
@@ -625,15 +688,39 @@
     const el = event.composedPath().find(node => node instanceof Element && /^(?:Mark responses as correct|Mark responses as incorrect)$/.test(node.getAttribute?.('aria-label') || ''));
     if (!el) return;
     const incorrect = el.getAttribute('aria-label') === 'Mark responses as incorrect';
+    const card = el.closest(CARD_SELECTOR);
+    const startingInput = card?.querySelector(INPUT_SELECTOR);
+    const previousScore = startingInput?.value.trim();
+    const cardIndex = card ? [...document.querySelectorAll(CARD_SELECTOR)].indexOf(card) : -1;
+    if (startingInput) nativeGradePending.add(startingInput);
     debug('native grade clicked (not a save)', { trusted: event.isTrusted, incorrect });
-    setTimeout(() => {
+    const started = Date.now();
+    const finish = () => {
+      const replacementCard = card?.isConnected ? card : [...document.querySelectorAll(CARD_SELECTOR)][cardIndex];
+      const currentInput = replacementCard?.querySelector(INPUT_SELECTOR) || startingInput;
+      const updatedScore = currentInput?.value.trim();
+      // Forms processes these button clicks asynchronously. Wait until the
+      // score actually changes before scrolling to another response.
+      if (currentInput?.isConnected && updatedScore === previousScore && Date.now() - started < 1500) {
+        setTimeout(finish, 120);
+        return;
+      }
       scan();
+      if (startingInput) nativeGradePending.delete(startingInput);
+      const index = entries.findIndex(e => e.input === currentInput || e.card === card);
+      const resolvedIndex = index >= 0 ? index : cardIndex;
+      const scored = updatedScore !== '' && updatedScore !== undefined && updatedScore !== previousScore;
+      if (scored && resolvedIndex >= 0 && resolvedIndex < entries.length) {
+        navIndex = resolvedIndex;
+        nextUngraded({ notify: false });
+      }
       const p = progress();
-      debug('after native grade', { progress: p, incorrect, saveBarVisible: !!findNativeSave() });
+      debug('after native grade', { progress: p, incorrect, scored, autoAdvanced: scored, saveBarVisible: !!findNativeSave() });
       showToast(p.total && p.completed === p.total
         ? messages.savePrompt[messageIndex++ % messages.savePrompt.length]
         : incorrect ? messages.low[messageIndex++ % messages.low.length] : pickMessage(p));
-    }, 320);
+    };
+    setTimeout(finish, 180);
   }, true);
 
   function render(message) {

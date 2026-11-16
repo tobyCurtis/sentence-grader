@@ -71,14 +71,19 @@
       const starts = [...span.text.matchAll(/\b(?:I|We|They|He|She|My|Our|The|Then|It)\s+(?:[a-z][\w’'-]*\s+){0,2}[a-z][\w’'-]*/g)];
       const suspicious = starts.filter(m => m.index > 5 && !/\b(?:and|but|because|when|while|so|that|if|as|although)\s+$/i.test(span.text.slice(Math.max(0, m.index - 12), m.index)));
       if (suspicious.length >= 2) {
-        const first = suspicious[0];
-        const last = suspicious[suspicious.length - 1];
         const offset = original.slice(span.start, span.end).indexOf(span.text);
-        issues.push({
-          start: span.start + Math.max(0, offset) + first.index,
-          end: span.start + Math.max(0, offset) + last.index + last[0].length,
-          reason: 'Several sentence starts appear without punctuation between them. Check the count manually.'
-        });
+        // Mark each possible new sentence start, not the entire passage
+        // between the first and last clue. The latter covered whole lines
+        // with squiggles and made the tooltip hard to place or read.
+        for (const match of suspicious) {
+          const shortPhrase = match[0].trim().split(/\s+/).slice(0, 2).join(' ');
+          const from = span.start + Math.max(0, offset) + match.index;
+          issues.push({
+            start: from,
+            end: from + shortPhrase.length,
+            reason: 'Possible sentence break here. Check the punctuation.'
+          });
+        }
       }
     }
 

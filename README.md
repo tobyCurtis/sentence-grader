@@ -22,9 +22,9 @@ Some writing assignments ask students to write at least six complete sentences. 
 - **Flags uncertain answers** for manual review instead of automatically filling them.
 - **Fills blank scores only**, preserving grades you've already entered.
 - **Shows sentence-count badges** in their own small row beneath each response and hides scored answers from the normal review list.
-- **Jumps to the next ungraded answer** with a gentle highlight on the Google Forms card and the matching preview.
+- **Jumps to the next ungraded answer** with a gentle highlight on the Google Forms card and the matching preview, including after the native ✓ and ✕ grading buttons update a score.
 - **Adapts to smaller screens.** After Next ungraded, the panel shrinks to keep the active score box clear, and the launcher returns if there's no room.
-- **Marks ambiguous text** with a subtle squiggly underline and a themed Tippy.js explanation that follows its target as the page scrolls.
+- **Marks ambiguous text** with short squiggly underlines on the suspected sentence starts, plus compact, locally bundled Tippy.js explanations anchored to each mark with extra spacing and constrained to the visible Forms scroll area.
 - **Uses Google Forms' own Save grades control** rather than submitting grades through a separate service.
 - **Celebrates progress** with personalized motivational toasts, optional confetti, and a tiny trumpet fanfare. 🎺
 - **Remembers preferences**, including the grader's name. (Hi, Berlin! 👋)

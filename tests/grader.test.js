@@ -32,11 +32,14 @@ test('ellipses are sentence boundaries', () => {
   assert.equal(analyze('I opened the old box... and found a letter. It had no name on it.').count, 3);
 });
 test('missing punctuation between sentences requires review', () => {
-  const result = analyze('I went to the beach I found a shell My friend saw a bird We built a sandcastle');
+  const text = 'I went to the beach I found a shell My friend saw a bird We built a sandcastle';
+  const result = analyze(text);
   assert.equal(result.confident, false);
   assert.match(result.warnings.join(' '), /missing punctuation/);
-  assert.ok(result.issues.length > 0);
-  assert.match('I went to the beach I found a shell My friend saw a bird We built a sandcastle'.slice(result.issues[0].start, result.issues[0].end), /I found/);
+  assert.ok(result.issues.length >= 2);
+  assert.match(text.slice(result.issues[0].start, result.issues[0].end), /I found/);
+  assert.ok(result.issues.every(({ start, end }) => end - start < 25));
+  assert.ok(result.issues.every(({ start, end }) => text.slice(start, end).split(' ').length <= 2));
 });
 test('fragments count as written, without grammar flags', () => {
   const result = analyze('The beautiful beach. Lots of sunshine. Very peaceful.');
@@ -102,4 +105,5 @@ test('a long multiline answer still identifies ambiguity if Forms collapses its 
   const issue = analysis.issues[0];
   assert.ok(issue.end > issue.start);
   assert.match(collapsed.slice(issue.start, issue.end), /My favorite|Last time|We spent/);
+  assert.ok(analysis.issues.every(({ start, end }) => end - start < 25));
 });

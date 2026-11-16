@@ -21,4 +21,7 @@
 - Put sentence-count chips in their own row below answers instead of overlapping text.
 - Align Next ungraded to the top of the answer card, so teachers can read downward toward the score.
 - Add persistent settings for missing-punctuation review, line-break boundaries, and ellipsis boundaries.
+- Refine Tippy.js hints after live testing: underline only the suspected sentence starts and show shorter, more compact, anchored tooltips.
+- Give hover hints more breathing room and constrain Popper placement to the visible Google Forms scroll area, hiding off-screen marks as it moves.
+- After a native Google Forms correct/incorrect click updates its score, automatically navigate to the next ungraded response.
 
