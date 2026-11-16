@@ -34,6 +34,7 @@
   const focusValue = new WeakMap();
   const seenGraded = new WeakSet();
   const nativeGradePending = new WeakSet();
+  const failedFills = new WeakMap();
   const debug = (event, details = {}) => console.info('[Sentence Grader]', event, details);
   const messages = {
     start: ['Nice job getting going! ✨', 'And we’re off! You’ve got this.', 'First steps, big energy.', 'Look at you showing up!'],
@@ -268,7 +269,19 @@
     badge.style.cssText = 'display:table;width:max-content;max-width:calc(100% - 16px);margin:6px 16px 8px auto;padding:3px 9px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;pointer-events:none';
     const answerRow = e.answerNode.closest('.vnb4ld') || e.answerNode;
     if (answerRow.nextElementSibling !== badge) answerRow.insertAdjacentElement('afterend', badge);
-    badge.textContent = `${e.analysis.count} ${e.analysis.count === 1 ? 'sentence' : 'sentences'}`;
+    const countText = `${e.analysis.count} ${e.analysis.count === 1 ? 'sentence' : 'sentences'}`;
+    // Blank does not necessarily mean ambiguous. Tell the teacher whether
+    // this answer is ready to fill, needs review, or failed a fill attempt.
+    const status = !e.blank ? '' : scoreFieldUnavailable(e)
+      ? ' · Score field unavailable'
+      : failedFills.has(e.input)
+      ? ' · Fill did not stick'
+      : e.analysis.confident ? ` · ${e.analysis.score}/6 ready to fill` : ' · Review needed';
+    badge.textContent = countText + status;
+  }
+
+  function scoreFieldUnavailable(e) {
+    return e.input.disabled || e.input.getAttribute('aria-disabled') === 'true';
   }
 
   function clearReviewMarks() {
@@ -438,6 +451,7 @@
       const answer = answerNodes[0].textContent || answerNodes[0].innerText || '';
       const analysis = SentenceGrader.analyze(answer, preferences.rules);
       const blank = input.value.trim() === '';
+      if (!blank) failedFills.delete(input);
       const entry = { card, input, answerNode: answerNodes[0], answer, analysis, blank };
       entries.push(entry);
       addSentenceBadge(entry);
@@ -518,7 +532,13 @@
         debug('next ungraded preview selected', { answerIndex: index + 1, warningCount: e.analysis.warnings.length });
       }
       queueLayout();
-      if (notify) showToast(`${pickMessage(progress())} ${progress().completed}/${progress().total} scored.`);
+      if (notify) {
+        const guidance = scoreFieldUnavailable(e) ? 'Google Forms has disabled this score field. Check the question settings.'
+          : failedFills.has(e.input) ? 'Google Forms did not retain the fill. Enter this score manually.'
+          : e.analysis.confident ? `${e.analysis.count} sentences found. ${e.analysis.score}/6 ready to fill!`
+            : `Needs a closer look: ${e.analysis.warnings[0] || 'Check this answer manually.'}`;
+        showToast(guidance);
+      }
       return true;
     }
     if (notify) showToast(progress().completed === progress().total
@@ -742,10 +762,11 @@
       panel.querySelector('[data-pending-save]').classList.toggle('hidden', !pendingSave);
       return;
     }
-    const eligible = entries.filter(e => e.blank && e.analysis.confident);
+    const eligible = entries.filter(e => e.blank && e.analysis.confident && !scoreFieldUnavailable(e));
     fillButton.disabled = eligible.length === 0;
+    const unavailable = entries.filter(e => e.blank && scoreFieldUnavailable(e)).length;
     summary.textContent = entries.length
-      ? `${p.completed}/${p.total} scored · ${eligible.length} ready to fill · ${entries.filter(e => e.blank && !e.analysis.confident).length} need review`
+      ? `${p.completed}/${p.total} scored · ${eligible.length} ready to fill · ${entries.filter(e => e.blank && !e.analysis.confident && !scoreFieldUnavailable(e)).length} need review${unavailable ? ` · ${unavailable} unavailable` : ''}`
       : 'No answer cards found. Navigate to Responses → Question and reopen Sentence Grader.';
     results.replaceChildren();
     if (message) {
@@ -759,7 +780,12 @@
       heading.textContent = `Answer ${index + 1} · ${e.analysis.count} detected · proposed ${e.analysis.score}/6 · ${e.blank ? 'blank score' : `existing ${e.input.value}/6`}`;
       const snippet = document.createElement('div'); snippet.className = 'snippet'; snippet.textContent = e.answer.slice(0, 250);
       const status = document.createElement('div'); status.className = e.analysis.confident ? 'small' : 'warning';
-      status.textContent = e.analysis.confident ? 'Ready for review and fill' : `Manual review: ${e.analysis.warnings.join('; ')}`;
+      status.textContent = scoreFieldUnavailable(e)
+        ? 'Google Forms has disabled this scoring field. Check the question settings.'
+        : failedFills.has(e.input)
+        ? `Google Forms did not retain the attempted ${e.analysis.score}/6 score. Enter it manually.`
+        : e.analysis.confident ? `Ready to fill: ${e.analysis.score}/6. No counting issues detected.`
+          : `Manual review: ${e.analysis.warnings.join('; ')}`;
       item.append(heading, snippet, status); results.append(item);
     }
   }
@@ -773,9 +799,10 @@
       return;
     }
     let filled = 0;
+    const attempts = [];
     autoFillInProgress = true;
     for (const e of entries) {
-      if (!e.blank || !e.analysis.confident || !e.input.isConnected || e.input.disabled) continue;
+      if (!e.blank || !e.analysis.confident || !e.input.isConnected || scoreFieldUnavailable(e)) continue;
       // Google Forms commonly commits a score when the field loses focus.
       // Simulate the complete edit lifecycle, then verify its Save bar appears.
       e.input.focus();
@@ -784,6 +811,7 @@
       e.input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: String(e.analysis.score) }));
       e.input.dispatchEvent(new Event('change', { bubbles: true }));
       e.input.blur();
+      attempts.push({ input: e.input, card: e.card, expected: String(e.analysis.score) });
       filled++;
     }
     autoFillInProgress = false;
@@ -791,6 +819,21 @@
     debug('automatic fill finished', { filled, saveBarVisible: !!findNativeSave(), progress: progress() });
     // The toolbar is often mounted asynchronously after blur.
     setTimeout(() => {
+      let failed = 0;
+      let firstFailedInput = null;
+      for (const attempt of attempts) {
+        const current = attempt.card.querySelector(INPUT_SELECTOR) || attempt.input;
+        if (current.value.trim() !== attempt.expected) {
+          failedFills.set(current, true);
+          failed++;
+          firstFailedInput ||= current;
+        } else failedFills.delete(current);
+      }
+      if (attempts.length) scan();
+      if (firstFailedInput) {
+        const failedIndex = entries.findIndex(e => e.input === firstFailedInput);
+        if (failedIndex >= 0) navIndex = failedIndex - 1;
+      }
       const navigated = filled > 0 ? nextUngraded({ notify: false }) : false;
       if (filled > 0) {
         const p = progress();
@@ -798,8 +841,9 @@
           ? messages.savePrompt[messageIndex++ % messages.savePrompt.length]
           : `${pickMessage(p)} ${p.completed}/${p.total} scored. ${navigated ? 'Next answer highlighted!' : ''}`);
       }
+      if (failed) showToast(`${failed} score(s) did not stick in Google Forms. Check the highlighted response and enter them manually.`);
       render(filled
-        ? `Filled ${filled} score(s). ${navigated ? 'Jumped to the next ungraded answer. ' : ''}${findNativeSave() ? 'Review your scores, then click Save grades.' : 'Google Forms did not show its Save grades bar. These values may not be registered! Edit a field manually and save.'}`
+        ? `Attempted ${filled} score(s). ${failed ? `${failed} did not stick and need manual entry. ` : ''}${navigated ? 'Jumped to the next ungraded answer. ' : ''}${findNativeSave() ? 'Review your scores, then click Save grades.' : 'Google Forms did not show its Save grades bar. These values may not be registered! Edit a field manually and save.'}`
         : 'No eligible blank scores found.');
     }, 500);
   }

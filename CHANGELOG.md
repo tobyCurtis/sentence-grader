@@ -24,4 +24,6 @@
 - Refine Tippy.js hints after live testing: underline only the suspected sentence starts and show shorter, more compact, anchored tooltips.
 - Give hover hints more breathing room and constrain Popper placement to the visible Google Forms scroll area, hiding off-screen marks as it moves.
 - After a native Google Forms correct/incorrect click updates its score, automatically navigate to the next ungraded response.
+- Make blank responses explain their state on the Forms card: ready to fill, requires review, or fill attempt not retained; verify filled values after Google Forms settles.
+- Use 14 entirely fictional, activism-themed test responses modeled on realistic classroom length and punctuation patterns; relax false punctuation flags inside legitimate complex sentences.
 

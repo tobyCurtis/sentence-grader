@@ -69,7 +69,14 @@
     const issues = [];
     for (const span of rules.reviewMissingPunctuation ? spans : []) {
       const starts = [...span.text.matchAll(/\b(?:I|We|They|He|She|My|Our|The|Then|It)\s+(?:[a-z][\w’'-]*\s+){0,2}[a-z][\w’'-]*/g)];
-      const suspicious = starts.filter(m => m.index > 5 && !/\b(?:and|but|because|when|while|so|that|if|as|although)\s+$/i.test(span.text.slice(Math.max(0, m.index - 12), m.index)));
+      const suspicious = starts.filter(m => {
+        const before = span.text.slice(Math.max(0, m.index - 14), m.index);
+        // A new subject after a comma or a connecting word is usually still
+        // inside the same sentence. Do not make ordinary complex sentences
+        // require manual review just because a student writes "I think I...".
+        return m.index > 5 && !/[,;:]\s*$/.test(before) &&
+          !/\b(?:and|but|because|when|while|so|that|if|as|although|though|what|who|which|where|since|unless|until)\s+$/i.test(before);
+      });
       if (suspicious.length >= 2) {
         const offset = original.slice(span.start, span.end).indexOf(span.text);
         // Mark each possible new sentence start, not the entire passage
