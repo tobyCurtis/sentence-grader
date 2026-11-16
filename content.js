@@ -6,7 +6,7 @@
   const ANSWER_SELECTOR = '.vnb4ld .x8O7Bb';
   let entries = [];
   let opened = false;
-  const preferences = { toasts: true, confetti: true, sound: true, graderName: 'Berlin' };
+  const preferences = { toasts: true, confetti: true, volume: 75, graderName: 'Berlin' };
   let toastCount = 0;
   let audioContext;
   let navIndex = -1;
@@ -19,14 +19,21 @@
   let visibleSignature = '';
   let completedMessage = '';
   let saveBarVisibleSnapshot = false;
-  const completedMessages = ['Nice work. Nothing to do here! ✨', 'All caught up. Enjoy that little victory.', 'Look at that—every response scored! 💜', 'A clean slate! You crushed this batch.', 'No loose ends. Beautiful work!', 'You did the thing. Time for a tiny victory lap.'];
+  let anchorEntry = null;
+  let anchorCollapsed = false;
+  let reviewEntry = null;
+  let tooltipDismiss;
+  let hoverTip;
+  const reviewMarks = [];
+  let layoutQueued = false;
+  const completedMessages = ['Nice work. Nothing to do here! ✨', 'All caught up. Enjoy that little victory.', 'Look at that! Every response scored! 💜', 'A clean slate! You crushed this batch.', 'No loose ends. Beautiful work!', 'You did the thing. Time for a tiny victory lap.'];
   const focusValue = new WeakMap();
   const seenGraded = new WeakSet();
   const debug = (event, details = {}) => console.info('[Sentence Grader]', event, details);
   const messages = {
     start: ['Nice job getting going! ✨', 'And we’re off! You’ve got this.', 'First steps, big energy.', 'Look at you showing up!'],
     middle: ['You’re cookin’ now!', 'Okay, grading legend!', 'Smooth moves, teach.', 'Keep that good groove going.', 'You’ve got the magic touch.', 'Absolute rockstar behavior.'],
-    end: ['Almost done—home stretch!', 'The finish line is waving!', 'So close! You’ve got this.', 'Final lap, superstar.'],
+    end: ['Almost done! Home stretch!', 'The finish line is waving!', 'So close! You’ve got this.', 'Final lap, superstar.'],
     lull: ['One response at a time.', 'You’re making a difference.', 'Tiny wins add up.', 'Steady looks good on you.', 'Progress is progress.', 'Keep it golden.'],
     final: [
       'You’re the bee’s knees! All saved! 🐝',
@@ -45,6 +52,15 @@
       'Certified icon behavior. Well done!',
       'You understood the assignment! 🎓',
       'Great Scott! Every grade is saved!'
+    ],
+    low: [
+      'Oof! Another response handled with care.',
+      'They can’t all be winners. You’ve got this!',
+      'Every answer deserves a fair look. Nicely done!',
+      'A tough one! Thanks for giving it your attention.',
+      'Not every answer gets the points. Keep rolling!',
+      'Sometimes zero is the score. On to the next!',
+      'You did your best! One more checked off.'
     ]
   };
   let finaleBag = [];
@@ -54,12 +70,12 @@
   }
   messages.savePrompt = [
     'You did it!! Smash that Save button! 💜',
-    'All graded! Seal the deal—hit Save!',
+    'All graded! Seal the deal. Hit Save!',
     'Holy moly, all scored! Save that masterpiece.',
     'Boom! One click from glory. Hit Save!',
     'That’s a wrap… almost! Save those grades.',
     'You’re a grading machine! Save to lock it in.',
-    'Radical work! Now make it official—Save!',
+    'Radical work! Now make it official. Save!',
     'Look at that clean sweep! Save it, superstar.',
     'Mission almost accomplished. Punch that Save button!',
     'You’ve cooked a five-star meal. Time to Save!',
@@ -90,6 +106,20 @@
     .head-actions {gap:7px}.head button.icon-btn,.head button.close {width:42px;height:42px;display:grid;place-items:center;padding:0;border-radius:10px;line-height:1;font-weight:700}
     .head button.icon-btn {font-size:27px}.head button.close {font-size:30px}.head button.close:hover {background:#e3d9f3}.head button.icon-btn.hidden {display:none}
     .name-setting {display:grid;gap:6px;margin:17px 0 14px;color:#4e318a;font-weight:600}.name-setting input {width:100%;padding:10px;border:1px solid #cfc3e4;border-radius:8px;font:inherit;color:#332b40;background:#fff}.name-setting input:focus {outline:2px solid #8d68d0;outline-offset:1px}
+    .panel {display:flex;flex-direction:column;max-height:min(76vh,700px);transition:max-height .16s ease-out}
+    .head {flex:none}.body {flex:1;min-height:0;max-height:none;overflow-y:auto;overscroll-behavior:contain}
+    .settings-page {min-height:0;overflow:auto}.settings-page.hidden,.body.hidden,.panel.hidden {display:none}
+    .volume-setting {display:grid;gap:7px;margin:8px 0;color:#4e318a;font-weight:600}.volume-setting .volume-line {display:flex;justify-content:space-between;align-items:center}.volume-setting input {width:100%;cursor:pointer}.volume-setting small {color:#766a85;font-weight:400}
+    .toast {width:min(408px,calc(100vw - 26px));padding:14px 19px;font-size:17px;animation:toast-pop .37s cubic-bezier(.18,1.4,.45,1) both}
+    .toast .count {font-size:13px}.toast .message {padding:6px 0 2px}.toast.final {font-size:19px}
+    .toast.leaving {animation:toast-out .34s ease-in both}
+    @keyframes toast-pop {from {opacity:0;transform:translate(-50%,-23px) scale(.94)}to {opacity:1;transform:translate(-50%,0) scale(1)}}
+    @keyframes toast-out {from {opacity:1;transform:translate(-50%,0) scale(1)}to {opacity:0;transform:translate(-50%,-28px) scale(.98)}}
+    @media (prefers-reduced-motion:reduce) {.toast,.toast.leaving {animation:none!important}.panel {transition:none}}
+    .card-count {position:absolute;top:9px;right:14px;padding:3px 8px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;z-index:2;pointer-events:none;box-shadow:0 1px 5px #0001}
+    .review-squiggle {position:fixed;height:7px;z-index:2147483646;pointer-events:auto;cursor:help;background-repeat:repeat-x;background-position:bottom left;background-size:12px 5px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='5'%3E%3Cpath d='M0 3 Q3 0 6 3 T12 3' stroke='%23b33d75' stroke-width='1.6' fill='none'/%3E%3C/svg%3E")}
+    .review-tip {position:fixed;max-width:290px;z-index:2147483647;pointer-events:auto;background:#f4effc;color:#442773;border:1px solid #d8c8ef;padding:10px 12px;border-radius:9px;box-shadow:0 6px 22px #0003;font:13px/1.4 Roboto,Arial,sans-serif}
+    .trigger {transition:transform .16s}.trigger.hidden {display:none}
     `;
   shadow.append(style);
 
@@ -101,23 +131,36 @@
   shadow.append(trigger);
   const panel = document.createElement('section');
   panel.className = 'panel hidden';
-  panel.innerHTML = '<div class="head"><strong data-panel-title>Sentence Grader</strong><div class="head-actions"><button class="icon-btn" data-action="settings" aria-label="Settings" title="Settings">⚙</button><button class="close" aria-label="Close panel">×</button></div></div><div class="body" data-main><div class="toolbar" data-toolbar><div class="small">Responses → Question · review before saving.</div><div class="actions"><button data-action="fill" disabled title="Fill confident blank scores">Fill blanks</button><button data-action="next" class="secondary" title="Next ungraded answer">Next ungraded ↓</button><button data-action="save" class="secondary" title="Save all filled scores">Save grades</button></div></div><div data-summary class="small"></div><div data-results></div><p class="small">Scores are not saved until Google Forms confirms Save grades.</p></div><div class="settings-page hidden" data-settings-page><p>Make grading your kind of fun.</p><div class="checks"><label><input type="checkbox" data-setting="toasts" checked> Encouragement toasts</label><label><input type="checkbox" data-setting="confetti" checked> Finish-line confetti 🎊</label><label><input type="checkbox" data-setting="sound" checked> Celebration trumpet 🎺</label></div><button class="secondary" data-action="test-sound">▶ Test trumpet</button><div class="note">Preferences stay saved in Chrome · v0.8</div><div class="actions"><button data-action="back">← Back to grading</button></div></div>';
+  panel.innerHTML = '<div class="head"><strong data-panel-title>Sentence Grader</strong><div class="head-actions"><button class="icon-btn" data-action="settings" aria-label="Settings" title="Settings">⚙</button><button class="close" aria-label="Close panel">×</button></div></div><div class="body" data-main><div class="toolbar" data-toolbar><div class="small">Responses → Question · review before saving.</div><div class="actions"><button data-action="fill" disabled title="Fill confident blank scores">Fill blanks</button><button data-action="next" class="secondary" title="Next ungraded answer">Next ungraded ↓</button><button data-action="save" class="secondary" title="Save all filled scores">Save grades</button></div></div><div data-summary class="small"></div><div data-results></div><p class="small">Scores are not saved until Google Forms confirms Save grades.</p></div><div class="settings-page hidden" data-settings-page><p>Make grading your kind of fun.</p><div class="checks"><label><input type="checkbox" data-setting="toasts" checked> Encouragement toasts</label><label><input type="checkbox" data-setting="confetti" checked> Finish-line confetti 🎊</label></div><label class="volume-setting"><span class="volume-line"><span>Celebration trumpet 🎺</span><output data-volume-label>75%</output></span><input type="range" data-volume min="0" max="100" step="5" value="75" aria-label="Celebration volume"><small>Slide to zero to mute. Your setting is remembered.</small></label><button class="secondary" data-action="test-sound">▶ Test trumpet</button><div class="note">Preferences stay saved in Chrome · v1.0.1</div><div class="actions"><button data-action="back">← Back to grading</button></div></div>';
   shadow.append(panel);
   const summary = panel.querySelector('[data-summary]');
   const results = panel.querySelector('[data-results]');
   const fillButton = panel.querySelector('[data-action="fill"]');
-  panel.querySelector('[data-toolbar]').insertAdjacentHTML('afterend', '<section class="complete hidden" data-complete><div class="symbol">💜</div><h3 data-complete-message>Nice work. Nothing to do here!</h3><p>Every visible answer has a score.</p><div class="pending-save hidden" data-pending-save>Everything is scored—save these changes to lock them in.<button data-action="complete-save">Save grades</button></div><button class="celebrate" data-action="celebrate">🎉 Launch confetti!</button><button class="back-link" data-action="review-anyway">Back to grading</button></section>');
+  panel.querySelector('[data-toolbar]').insertAdjacentHTML('afterend', '<section class="complete hidden" data-complete><div class="symbol">💜</div><h3 data-complete-message>Nice work. Nothing to do here!</h3><p>Every visible answer has a score.</p><div class="pending-save hidden" data-pending-save>Everything is scored! Save these changes to lock them in.<button data-action="complete-save">Save grades</button></div><button class="celebrate" data-action="celebrate">🎉 Launch confetti!</button><button class="back-link" data-action="review-anyway">Back to grading</button></section>');
   const completeSection = panel.querySelector('[data-complete]');
   panel.querySelector('.settings-page .checks').insertAdjacentHTML('afterend', '<label class="name-setting" for="sentence-grader-name">Grader name<input id="sentence-grader-name" data-grader-name type="text" maxlength="30" value="Berlin" autocomplete="off" placeholder="Berlin"></label>');
 
-  trigger.addEventListener('click', () => { opened = true; trigger.classList.add('hidden'); panel.classList.remove('hidden'); scan(); });
-  panel.querySelector('.close').addEventListener('click', () => { opened = false; panel.classList.add('hidden'); trigger.classList.remove('hidden'); });
+  trigger.addEventListener('click', () => {
+    // The compact launcher is also a manual reset if the teacher scrolled up
+    // beyond the anchored response and wants to open the full panel again.
+    anchorEntry = null;
+    opened = true;
+    updatePanelLayout();
+    scan();
+  });
+  panel.querySelector('.close').addEventListener('click', () => {
+    opened = false;
+    anchorEntry = null;
+    clearReviewMarks();
+    updatePanelLayout();
+  });
   function toggleSettings(show) {
     panel.querySelector('[data-main]').classList.toggle('hidden', show);
     panel.querySelector('[data-settings-page]').classList.toggle('hidden', !show);
     panel.querySelector('[data-panel-title]').textContent = show ? 'Settings' : 'Sentence Grader';
     panel.querySelector('[data-action="settings"]').classList.toggle('hidden', show);
     if (!show) scan();
+    updatePanelLayout();
   }
   panel.querySelector('[data-action="settings"]').addEventListener('click', () => toggleSettings(true));
   panel.querySelector('[data-action="back"]').addEventListener('click', () => toggleSettings(false));
@@ -139,6 +182,12 @@
       chrome.storage.local.set({ sentenceGraderPreferences: preferences });
     });
   }
+  const volumeInput = panel.querySelector('[data-volume]');
+  volumeInput.addEventListener('input', () => {
+    preferences.volume = Number(volumeInput.value);
+    panel.querySelector('[data-volume-label]').textContent = `${preferences.volume}%`;
+    chrome.storage.local.set({ sentenceGraderPreferences: preferences });
+  });
   panel.querySelector('[data-grader-name]').addEventListener('change', event => {
     preferences.graderName = event.target.value.trim().slice(0, 30) || 'Berlin';
     event.target.value = preferences.graderName;
@@ -147,13 +196,135 @@
   });
   chrome.storage.local.get('sentenceGraderPreferences', data => {
     const saved = data.sentenceGraderPreferences || {};
-    for (const key of ['toasts', 'confetti', 'sound']) {
+    for (const key of ['toasts', 'confetti']) {
       if (typeof saved[key] === 'boolean') preferences[key] = saved[key];
       panel.querySelector(`[data-setting="${key}"]`).checked = preferences[key];
     }
+    if (typeof saved.volume === 'number') preferences.volume = Math.max(0, Math.min(100, saved.volume));
+    else if (saved.sound === false) preferences.volume = 0; // Preserve the v1.0.0 mute preference.
+    volumeInput.value = String(preferences.volume);
+    panel.querySelector('[data-volume-label]').textContent = `${preferences.volume}%`;
     if (typeof saved.graderName === 'string') preferences.graderName = saved.graderName.trim().slice(0, 30) || 'Berlin';
     panel.querySelector('[data-grader-name]').value = preferences.graderName;
   });
+
+  function updatePanelLayout() {
+    const settingsOpen = !panel.querySelector('[data-settings-page]').classList.contains('hidden');
+    let available = Math.min(window.innerHeight * .76, 700);
+    if (opened && anchorEntry && !settingsOpen) {
+      if (!anchorEntry.input.isConnected) anchorEntry = null;
+      else {
+        const field = anchorEntry.input.getBoundingClientRect();
+        // Keep the panel's upper edge BELOW the grading field. As the teacher
+        // scrolls up, that field moves down and available panel height shrinks.
+        // Scrolling back down naturally expands it to its normal height.
+        available = Math.min(available, window.innerHeight - Math.max(0, field.bottom) - 30);
+      }
+    }
+    anchorCollapsed = opened && !!anchorEntry && !settingsOpen && available < 95;
+    panel.style.maxHeight = `${Math.max(95, available)}px`;
+    panel.classList.toggle('hidden', !opened || anchorCollapsed);
+    trigger.classList.toggle('hidden', opened && !anchorCollapsed);
+  }
+
+  function queueLayout() {
+    if (layoutQueued) return;
+    layoutQueued = true;
+    requestAnimationFrame(() => {
+      layoutQueued = false;
+      updatePanelLayout();
+      if (reviewEntry) drawReviewMarks();
+    });
+  }
+  window.addEventListener('scroll', queueLayout, true);
+  window.addEventListener('resize', queueLayout);
+
+  function addSentenceBadge(e) {
+    let badge = [...e.card.children].find(child => child.classList.contains('sentence-grader-count'));
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'sentence-grader-count';
+      badge.style.cssText = 'position:absolute;top:9px;right:14px;padding:3px 8px;border:1px solid #e0d2f6;border-radius:999px;background:#f5efff;color:#5c348e;font:600 12px/1.4 Roboto,Arial,sans-serif;z-index:2;pointer-events:none;box-shadow:0 1px 5px #0001';
+      if (getComputedStyle(e.card).position === 'static') e.card.style.position = 'relative';
+      e.card.append(badge);
+    }
+    badge.textContent = `${e.analysis.count} ${e.analysis.count === 1 ? 'sentence' : 'sentences'}`;
+  }
+
+  function clearReviewMarks() {
+    reviewEntry = null;
+    reviewMarks.splice(0).forEach(mark => mark.remove());
+    if (hoverTip) { hoverTip.remove(); hoverTip = null; }
+    clearTimeout(tooltipDismiss);
+  }
+
+  function scheduleTipHide() {
+    clearTimeout(tooltipDismiss);
+    tooltipDismiss = setTimeout(() => { hoverTip?.remove(); hoverTip = null; }, 1000);
+  }
+
+  function showReviewTip(reason, rect) {
+    clearTimeout(tooltipDismiss);
+    if (!hoverTip) {
+      hoverTip = document.createElement('div');
+      hoverTip.className = 'review-tip';
+      hoverTip.setAttribute('role', 'tooltip');
+      hoverTip.addEventListener('mouseenter', () => clearTimeout(tooltipDismiss));
+      hoverTip.addEventListener('mouseleave', scheduleTipHide);
+      shadow.append(hoverTip);
+    }
+    hoverTip.textContent = reason;
+    hoverTip.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 305))}px`;
+    hoverTip.style.top = `${rect.top > 85 ? rect.top - 75 : rect.bottom + 9}px`;
+  }
+
+  function answerRange(node, start, end) {
+    const text = node.textContent || '';
+    if (start < 0 || end > text.length) return null;
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let cursor = 0;
+    let first = null;
+    let last = null;
+    while (walker.nextNode()) {
+      const part = walker.currentNode;
+      const next = cursor + part.length;
+      if (!first && next > start) first = [part, start - cursor];
+      if (first && end <= next) { last = [part, end - cursor]; break; }
+      cursor = next;
+    }
+    if (!first || !last) return null;
+    const range = document.createRange();
+    range.setStart(...first);
+    range.setEnd(...last);
+    return range;
+  }
+
+  function drawReviewMarks() {
+    reviewMarks.splice(0).forEach(mark => mark.remove());
+    const e = reviewEntry;
+    if (!e?.answerNode?.isConnected || !e.analysis.issues?.length) return;
+    const displayed = e.answerNode.textContent || '';
+    for (const issue of e.analysis.issues) {
+      const fragment = e.answer.slice(issue.start, issue.end);
+      const at = displayed === e.answer ? issue.start : displayed.indexOf(fragment);
+      if (at < 0) continue;
+      const range = answerRange(e.answerNode, at, at + fragment.length);
+      if (!range) continue;
+      for (const rect of range.getClientRects()) {
+        if (rect.width < 2 || rect.bottom < 0 || rect.top > window.innerHeight) continue;
+        const mark = document.createElement('div');
+        mark.className = 'review-squiggle';
+        mark.style.left = `${rect.left}px`;
+        mark.style.top = `${rect.bottom - 4}px`;
+        mark.style.width = `${rect.width}px`;
+        mark.setAttribute('aria-label', issue.reason);
+        mark.addEventListener('mouseenter', () => showReviewTip(issue.reason, rect));
+        mark.addEventListener('mouseleave', scheduleTipHide);
+        shadow.append(mark);
+        reviewMarks.push(mark);
+      }
+    }
+  }
 
   function scan() {
     entries = [];
@@ -164,10 +335,15 @@
       const answer = answerNodes[0].innerText || answerNodes[0].textContent || '';
       const analysis = SentenceGrader.analyze(answer);
       const blank = input.value.trim() === '';
-      entries.push({ card, input, answer, analysis, blank });
+      const entry = { card, input, answerNode: answerNodes[0], answer, analysis, blank };
+      entries.push(entry);
+      addSentenceBadge(entry);
     }
+    if (anchorEntry) anchorEntry = entries.find(e => e.input === anchorEntry.input) || null;
+    if (reviewEntry) reviewEntry = entries.find(e => e.input === reviewEntry.input) || null;
     visibleSignature = entries.map(e => `${e.input.value}|${e.answer}`).join('\uE001');
     render();
+    queueLayout();
   }
 
   function progress() {
@@ -204,7 +380,10 @@
         : `${name}! ${message}`;
     } else line.textContent = message;
     toast.append(count, line); shadow.append(toast);
-    lastToastTimer = setTimeout(() => toast.remove(), isFinal ? 6500 : 3200);
+    lastToastTimer = setTimeout(() => {
+      toast.classList.add('leaving');
+      setTimeout(() => toast.remove(), 360);
+    }, isFinal ? 7650 : 4650);
   }
 
   function nextUngraded({ notify = true } = {}) {
@@ -215,6 +394,9 @@
       const e = entries[index];
       if (e.input.value.trim() !== '') continue;
       navIndex = index;
+      anchorEntry = e;
+      reviewEntry = e.analysis.issues?.length ? e : null;
+      if (!reviewEntry) clearReviewMarks();
       e.card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       e.card.animate([
         { outline: '3px solid #e6bd58', outlineOffset: '3px', boxShadow: '0 0 0 8px #e6bd5820' },
@@ -230,6 +412,7 @@
         scroller.scrollTo({ top: scroller.scrollTop + preview.getBoundingClientRect().top - scroller.getBoundingClientRect().top - scroller.clientHeight / 3, behavior: 'smooth' });
         debug('next ungraded preview selected', { answerIndex: index + 1, warningCount: e.analysis.warnings.length });
       }
+      queueLayout();
       if (notify) showToast(`${pickMessage(progress())} ${progress().completed}/${progress().total} scored.`);
       return true;
     }
@@ -240,7 +423,7 @@
   }
 
   function unlockAudio(force = false) {
-    if (!preferences.sound && !force) return;
+    if (preferences.volume <= 0 && !force) return;
     try {
       audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
       if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
@@ -248,7 +431,7 @@
   }
 
   async function trumpetFanfare(preview = false) {
-    if (!preview && !preferences.sound) return;
+    if (preferences.volume <= 0) return;
     unlockAudio(true);
     if (!audioContext) return;
     try { await audioContext.resume(); } catch (error) { debug('audio resume failed', { reason: String(error) }); }
@@ -260,7 +443,7 @@
     for (const { hz, t, d } of notes) {
       const gain = audioContext.createGain();
       gain.gain.setValueAtTime(.0001, now + t);
-      gain.gain.exponentialRampToValueAtTime(.22, now + t + .045);
+      gain.gain.exponentialRampToValueAtTime(.35 * (preferences.volume / 100), now + t + .045);
       gain.gain.exponentialRampToValueAtTime(.0001, now + t + d);
       gain.connect(audioContext.destination);
       for (const [harmonic, volume] of [[1, 1], [2, .34], [3, .14]]) {
@@ -304,7 +487,7 @@
       scan();
       const p = progress();
       if (p.total && p.completed === p.total && !hasCelebratedCurrentGrades()) {
-        showToast('Save clicked! You crushed the grading—verify that Google saved it. 💜', true);
+        showToast('Save clicked! You crushed the grading! Verify that Google saved it. 💜', true);
         celebrateCurrentGrades();
       }
     }, 1700);
@@ -389,20 +572,26 @@
         const p = progress();
         showToast(p.total > 0 && p.completed === p.total
           ? messages.savePrompt[messageIndex++ % messages.savePrompt.length]
-          : pickMessage(p));
+          : after === '0' ? messages.low[messageIndex++ % messages.low.length] : pickMessage(p));
       }
     }, 100);
   }, true);
 
-  // The row's mark-correct action changes grading state but is not a Save.
+  // The teacher also grades using Google Forms' native tick and X controls.
+  // Neither action is a Save, but both deserve the same progress feedback.
   document.addEventListener('click', event => {
-    const el = event.composedPath().find(node => node instanceof Element && node.getAttribute?.('aria-label') === 'Mark responses as correct');
+    const el = event.composedPath().find(node => node instanceof Element && /^(?:Mark responses as correct|Mark responses as incorrect)$/.test(node.getAttribute?.('aria-label') || ''));
     if (!el) return;
-    debug('mark correct clicked (not a save)', { trusted: event.isTrusted });
+    const incorrect = el.getAttribute('aria-label') === 'Mark responses as incorrect';
+    debug('native grade clicked (not a save)', { trusted: event.isTrusted, incorrect });
     setTimeout(() => {
       scan();
-      debug('after mark correct', { progress: progress(), saveBarVisible: !!findNativeSave() });
-    }, 250);
+      const p = progress();
+      debug('after native grade', { progress: p, incorrect, saveBarVisible: !!findNativeSave() });
+      showToast(p.total && p.completed === p.total
+        ? messages.savePrompt[messageIndex++ % messages.savePrompt.length]
+        : incorrect ? messages.low[messageIndex++ % messages.low.length] : pickMessage(p));
+    }, 320);
   }, true);
 
   function render(message) {
@@ -412,6 +601,7 @@
     const pendingSave = !!findNativeSave();
     saveBarVisibleSnapshot = pendingSave;
     const complete = allScored && !forceReview;
+    if (complete && anchorEntry) { anchorEntry = null; clearReviewMarks(); queueLayout(); }
     completeSection.classList.toggle('hidden', !complete);
     panel.querySelector('[data-toolbar]').classList.toggle('hidden', complete);
     summary.classList.toggle('hidden', complete);
@@ -426,13 +616,14 @@
     const eligible = entries.filter(e => e.blank && e.analysis.confident);
     fillButton.disabled = eligible.length === 0;
     summary.textContent = entries.length
-      ? `${entries.length} answer card(s) found · ${eligible.length} ready to fill · ${entries.filter(e => !e.analysis.confident).length} need review`
+      ? `${p.completed}/${p.total} scored · ${eligible.length} ready to fill · ${entries.filter(e => e.blank && !e.analysis.confident).length} need review`
       : 'No answer cards found. Navigate to Responses → Question and reopen Sentence Grader.';
     results.replaceChildren();
     if (message) {
       const notice = document.createElement('div'); notice.className = 'notice ok'; notice.textContent = message; results.append(notice);
     }
     for (const [index, e] of entries.entries()) {
+      if (!e.blank && !forceReview) continue;
       const item = document.createElement('div'); item.className = 'item';
       item.dataset.rowIndex = String(index);
       const heading = document.createElement('div');
@@ -479,7 +670,7 @@
           : `${pickMessage(p)} ${p.completed}/${p.total} scored. ${navigated ? 'Next answer highlighted!' : ''}`);
       }
       render(filled
-        ? `Filled ${filled} score(s). ${navigated ? 'Jumped to the next ungraded answer. ' : ''}${findNativeSave() ? 'Review your scores, then click Save grades.' : 'Google Forms did not show its Save grades bar. These values may not be registered—edit a field manually and save.'}`
+        ? `Filled ${filled} score(s). ${navigated ? 'Jumped to the next ungraded answer. ' : ''}${findNativeSave() ? 'Review your scores, then click Save grades.' : 'Google Forms did not show its Save grades bar. These values may not be registered! Edit a field manually and save.'}`
         : 'No eligible blank scores found.');
     }, 500);
   }

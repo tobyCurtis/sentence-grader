@@ -6,62 +6,79 @@
     'e.g', 'i.e', 'a.m', 'p.m', 'u.s', 'u.k'
   ]);
 
+  // Count sentences, not grammatical completeness. Track original offsets so
+  // unusually ambiguous passages can be highlighted for a teacher to inspect.
   function analyze(text) {
-    const original = String(text || '').trim();
-    if (!original) return { count: 0, score: 3, confident: false, warnings: ['Empty answer — review manually'] };
+    const original = String(text || '');
+    if (!original.trim()) return {
+      count: 0, score: 3, confident: false,
+      warnings: ['Empty answer. Check this response.'], issues: []
+    };
 
-    const warnings = [];
-    let normalized = original.replace(/\r\n?/g, '\n');
-    if (/(?:^|\n)\s*(?:[•*\-]\s+|\d+[.)]\s+)/m.test(normalized)) warnings.push('List-style answer — inspect each item');
+    const protectedDots = new Set();
+    for (const match of original.matchAll(/\d\.\d/g)) protectedDots.add(match.index + 1);
+    for (const match of original.matchAll(/\b(?:[A-Za-z]\.){2,}/g)) {
+      for (let i = 0; i < match[0].length; i++) if (match[0][i] === '.') protectedDots.add(match.index + i);
+    }
+    for (const match of original.matchAll(/\b[A-Za-z]+\./g)) {
+      if (ABBREVIATIONS.has(match[0].slice(0, -1).toLowerCase())) protectedDots.add(match.index + match[0].length - 1);
+    }
 
-    // Hide punctuation that is not a sentence boundary, retaining each character's position.
-    normalized = normalized.replace(/(\d)\.(\d)/g, '$1\uE000$2');
-    normalized = normalized.replace(/\b(?:[A-Za-z]\.){2,}/g, match => match.replace(/\./g, '\uE000'));
-    normalized = normalized.replace(/\b(?:[A-Za-z]+\.)/g, match => {
-      const key = match.slice(0, -1).toLowerCase();
-      return ABBREVIATIONS.has(key) ? match.slice(0, -1) + '\uE000' : match;
-    });
-    // Also protect abbreviations containing internal dots.
-    normalized = normalized.replace(/\b(?:e\uE000g|i\uE000e|a\uE000m|p\uE000m)\./gi, match => match.slice(0, -1) + '\uE000');
-
-    // Each nonempty line may contain one or more sentences. A final unpunctuated
-    // span counts as a sentence, including at the end of the entire response.
-    // Ellipses separate sentences; repeated ! and ? remain one boundary.
-    let count = 0;
     const spans = [];
-    for (const line of normalized.split(/\n+/).map(s => s.trim()).filter(Boolean)) {
-      const boundaries = /(?:\.{3,}|…|[.!?]+)["'”’\])}]*/g;
-      let match;
-      let cursor = 0;
-      while ((match = boundaries.exec(line))) {
-        const span = line.slice(cursor, match.index).trim();
-        if (span) { count++; spans.push(span); }
-        cursor = boundaries.lastIndex;
+    const addSpan = (from, to) => {
+      const raw = original.slice(from, to);
+      const meaningful = raw.replace(/^[\s•*\-]*(?:\d+[.)]\s*)?/, '').trim();
+      if (meaningful && /[\p{L}\p{N}]/u.test(meaningful)) spans.push({ start: from, end: to, text: meaningful });
+    };
+    let start = 0;
+    let parenDepth = 0;
+    for (let i = 0; i < original.length; i++) {
+      const char = original[i];
+      if (char === '(' || char === '[') parenDepth++;
+      if (char === ')' || char === ']') parenDepth = Math.max(0, parenDepth - 1);
+      if (char === '\n' || char === '\r') {
+        addSpan(start, i);
+        while (i + 1 < original.length && /[\r\n]/.test(original[i + 1])) i++;
+        start = i + 1;
+        parenDepth = 0;
+        continue;
       }
-      const tail = line.slice(cursor).trim();
-      if (tail) { count++; spans.push(tail); }
+      if (parenDepth || !/[.!?…]/.test(char) || protectedDots.has(i)) continue;
+      // Repeated punctuation is a single boundary. A closing quote counts as
+      // part of the same sentence, including e.g. "That's great!".
+      let end = i + 1;
+      while (end < original.length && /[.!?…]/.test(original[end]) && !protectedDots.has(end)) end++;
+      while (end < original.length && /["'”’\])}]/.test(original[end])) end++;
+      addSpan(start, end);
+      start = end;
+      i = end - 1;
     }
+    addSpan(start, original.length); // The unpunctuated final sentence counts.
 
-    // An unpunctuated run containing obvious new subject starts might actually
-    // have several sentences. Preserve the counted span but require review.
-    if (spans.some(span => /\b[a-z][a-z,'’]*\s+(?:I|We|They|He|She|My|Our|The|Then|It)\s+[a-z]/.test(span))) {
-      warnings.push('Possible missing punctuation between sentences');
-    }
-    // Clear examples of fragments; more sophisticated grammar checks require
-    // a different engine and must never be represented as definitive.
-    if (spans.some(span => /^(?:Because|Although|When|If|While)\b/i.test(span) ||
-      /^(?:Very\s+\w+|Lots of\s+\w+|The\s+\w+\s+\w+)$/i.test(span))) {
-      warnings.push('Possible sentence fragment');
-    }
-    if (spans.some(span => span.replace(/\uE000/g, '.').split(/\s+/).length === 1)) {
-      warnings.push('One-word statement — teacher decision');
+    // Only flag strong signals of multiple unpunctuated sentence starts.
+    // Fragments, lists, short statements, run-ons and style aren't graded.
+    const issues = [];
+    for (const span of spans) {
+      const starts = [...span.text.matchAll(/\b(?:I|We|They|He|She|My|Our|The|Then|It)\s+(?:[a-z][\w’'-]*\s+){0,2}[a-z][\w’'-]*/g)];
+      const suspicious = starts.filter(m => m.index > 5 && !/\b(?:and|but|because|when|while|so|that|if|as|although)\s+$/i.test(span.text.slice(Math.max(0, m.index - 12), m.index)));
+      if (suspicious.length >= 2) {
+        const first = suspicious[0];
+        const last = suspicious[suspicious.length - 1];
+        const offset = original.slice(span.start, span.end).indexOf(span.text);
+        issues.push({
+          start: span.start + Math.max(0, offset) + first.index,
+          end: span.start + Math.max(0, offset) + last.index + last[0].length,
+          reason: 'Several sentence starts appear without punctuation between them. Check the count manually.'
+        });
+      }
     }
 
     return {
-      count,
-      score: Math.max(3, Math.min(6, count)),
-      confident: warnings.length === 0,
-      warnings
+      count: spans.length,
+      score: Math.max(3, Math.min(6, spans.length)),
+      confident: issues.length === 0,
+      warnings: issues.length ? ['Possible missing punctuation between sentences'] : [],
+      issues
     };
   }
 
