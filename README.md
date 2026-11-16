@@ -14,8 +14,6 @@ A friendly Chrome extension that helps teachers grade sentence-count responses i
 
 ---
 
-## See it in action 
-
 ![Sentence Grader walkthrough](assets/sentence-grader-demo.gif)
 
 *A quick tour through fictional responses,
