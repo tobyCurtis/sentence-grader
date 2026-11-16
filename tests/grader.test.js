@@ -107,3 +107,18 @@ test('a long multiline answer still identifies ambiguity if Forms collapses its 
   assert.match(collapsed.slice(issue.start, issue.end), /My favorite|Last time|We spent/);
   assert.ok(analysis.issues.every(({ start, end }) => end - start < 25));
 });
+
+test('synthetic five-sentence activism response needs no punctuation review', () => {
+  const response = 'Activism can mean speaking up for students who feel left out. sometimes a person just needs somebody to listen. I would like to support equal access to school activities because everyone should feel welcome. When a student cannot join a club for an unfair reason, their friends should help them.In the end even small actions matter.';
+  const result = analyze(response);
+  assert.equal(result.count, 5);
+  assert.equal(result.score, 5);
+  assert.equal(result.confident, true);
+  assert.deepEqual(result.issues, []);
+});
+test('complex activism sentence with repeated I does not trigger punctuation review', () => {
+  const response = 'I want everyone to have lunch at school. I think it matters because I know how difficult classes can feel when a person is hungry. Even though I am one student, I think I could help by gathering ideas and sharing what I learn with our principal. We should listen before planning changes.';
+  const result = analyze(response);
+  assert.equal(result.count, 4);
+  assert.equal(result.confident, true);
+});

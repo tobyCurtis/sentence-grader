@@ -21,7 +21,7 @@ Some writing assignments ask students to write at least six complete sentences. 
 - **Counts likely sentences** and proposes scores according to a simple rubric.
 - **Flags uncertain answers** for manual review instead of automatically filling them.
 - **Fills blank scores only**, preserving grades you've already entered.
-- **Shows sentence-count badges** in their own small row beneath each response and hides scored answers from the normal review list.
+- **Shows sentence-count badges** in their own small row beneath each response. Blank answers also show whether they're ready to fill or need review, and the extension reports if a fill attempt doesn't stick. Scored answers leave the normal review list.
 - **Jumps to the next ungraded answer** with a gentle highlight on the Google Forms card and the matching preview, including after the native ✓ and ✕ grading buttons update a score.
 - **Adapts to smaller screens.** After Next ungraded, the panel shrinks to keep the active score box clear, and the launcher returns if there's no room.
 - **Marks ambiguous text** with short squiggly underlines on the suspected sentence starts, plus compact, locally bundled Tippy.js explanations anchored to each mark with extra spacing and constrained to the visible Forms scroll area.
@@ -55,9 +55,9 @@ Want a safe place to test the extension without touching classroom data? The rep
 5. Open the **Execution log**. At the very end, find the direct edit URL on its own line. Click it if Apps Script makes it a link, or copy it into Chrome.
 6. In the Form editor, select **Responses → Question**, choose the six-point writing question, and open Sentence Grader from the purple launcher.
 
-The script creates a new quiz with a zero-point test ID question, a six-point paragraph question, and **12 fictional submissions**. It includes several longer student-style responses, along with abbreviations, quotations, ellipses, missing punctuation, and fragments. The writing answers start ungraded, ready for a real workflow test.
+The script creates a new quiz with a zero-point test ID question, a six-point **activism** paragraph question, and **14 fictional submissions**. The responses resemble real classroom writing in length and style while being entirely invented. They cover six-sentence and five-sentence answers, long complex sentences, lowercase starts, missing spaces after periods, abbreviations, quotations, ellipses, missing punctuation, line breaks, and fragments. Writing answers start ungraded, ready for a real workflow test.
 
-**A fresh form every time:** Running `setupSentenceGraderTest` always creates a **new** Form with a timestamp in its title and 12 new fictional responses. Previous test forms remain untouched. If you want to return to the latest form and add only missing cases, choose `reuseLatestSentenceGraderTest` instead. The older `createFreshSentenceGraderTest` command also creates a new form.
+**A fresh form every time:** Running `setupSentenceGraderTest` always creates a **new** Form with a timestamp in its title and 14 new fictional responses. Previous test forms remain untouched. If you want to return to the latest form and add only missing cases, choose `reuseLatestSentenceGraderTest` instead. The older `createFreshSentenceGraderTest` command also creates a new form.
 
 > **Please don't run the fixture against a real class Form.** It is a standalone script that generates fictional data under your account. Test with that Form first, and always verify scores after saving and reloading. Apps Script doesn't need to be deployed as a web app.
 
