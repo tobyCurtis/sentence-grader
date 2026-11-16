@@ -41,6 +41,23 @@ That's it! The extension scans currently visible answers when opened. No separat
 
 > **Tip:** Load the unpacked *folder*, not the ZIP. Unzip first.
 
+## Create a practice Google Form 🧪
+
+Want a safe place to test the extension without touching classroom data? The repository includes a ready-to-run Google Apps Script: [scripts/create-test-form.gs](scripts/create-test-form.gs).
+
+1. Open [Google Apps Script](https://script.google.com) and start a **New project**.
+2. Open the default `Code.gs` editor, remove the starter function, and paste in the contents of `scripts/create-test-form.gs`.
+3. Select `setupSentenceGraderTest` in the function dropdown and click **Run**. You do **not** need to Deploy the script.
+4. On the first run, approve the Google Forms and script-property permissions requested by Apps Script. Use your own test account.
+5. Open the **Execution log**. Copy the **FORM EDIT URL** and open it in Chrome.
+6. In the Form editor, select **Responses → Question**, choose the six-point writing question, and open Sentence Grader from the purple launcher.
+
+The script creates a new quiz with a zero-point test ID question, a six-point paragraph question, and **12 fictional submissions** covering normal sentences, punctuation, abbreviations, ellipses, missing punctuation, and fragments. The writing answers start ungraded, ready for a real workflow test.
+
+**Safe to rerun:** The script remembers its test Form ID using Apps Script properties. Subsequent runs reuse the same Form and add only missing case IDs. That means rerunning it will **not** reset existing grades. To start over with a **separate fresh test Form**, choose `createFreshSentenceGraderTest` instead. This does not delete the previous Form.
+
+> **Please don't run the fixture against a real class Form.** It is a standalone script that generates fictional data under your account. Test with that Form first, and always verify scores after saving and reloading. Apps Script doesn't need to be deployed as a web app.
+
 ## The scoring rule
 
 | Detected sentences | Proposed score |
